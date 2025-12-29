@@ -17,7 +17,7 @@ SPREADSHEET_ID = "1HKZ_4m-U-9r3Tqdzn98Ztul7XkifyU9Pn2t_ur8QW8I"
 WORKSHEET_NAME = "Daily Stats"
 DAILY_RANGE = "B4:C12"
 
-CHANNEL_ID = 123456789012345678  # Channel to post daily stats
+CHANNEL_ID = 1455146969579126951 # Channel to post daily stats
 
 # -------------------------------------------------
 # BOT SETUP
