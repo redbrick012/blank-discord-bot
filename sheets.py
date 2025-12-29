@@ -1,14 +1,15 @@
-from sheets import get_sheet_data
+import os
+import json
+import gspread
+from google.oauth2.service_account import Credentials
 
-SPREADSHEET_ID = "YOUR_SPREADSHEET_ID"
+def get_sheet_data(spreadsheet_id, worksheet_name):
+    creds_json = json.loads(os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON"))
 
-@bot.tree.command(name="sheet")
-async def sheet(interaction: discord.Interaction):
-    data = get_sheet_data(SPREADSHEET_ID, "Sheet1")
+    scopes = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+    credentials = Credentials.from_service_account_info(creds_json, scopes=scopes)
 
-    if not data:
-        await interaction.response.send_message("No data found.")
-        return
+    client = gspread.authorize(credentials)
+    sheet = client.open_by_key(spreadsheet_id).worksheet(worksheet_name)
 
-    first_row = data[0]
-    await interaction.response.send_message(f"First row:\n{first_row}")
+    return sheet.get_all_records()
