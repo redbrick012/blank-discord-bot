@@ -63,7 +63,16 @@ def format_table(data):
     if not data:
         return "No data."
 
-    rows = [[str(cell) for cell in row] for row in data]
+    # If data is a list of dicts, convert to rows
+    if isinstance(data[0], dict):
+        headers = list(data[0].keys())
+        rows = [headers]
+
+        for item in data:
+            rows.append([str(item.get(h, "")) for h in headers])
+    else:
+        # Assume list of lists
+        rows = [[str(cell) for cell in row] for row in data]
 
     col_widths = [
         max(len(row[i]) for row in rows)
