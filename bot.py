@@ -1,14 +1,19 @@
+
+#SPREADSHEET_ID = "1HKZ_4m-U-9r3Tqdzn98Ztul7XkifyU9Pn2t_ur8QW8I"
+
 import os
 import discord
 from discord.ext import commands
 from sheets import get_sheet_data
 
-SPREADSHEET_ID = "1HKZ_4m-U-9r3Tqdzn98Ztul7XkifyU9Pn2t_ur8QW8I"
+# Google Sheet ID (replace with your own)
+SPREADSHEET_ID = "YOUR_SPREADSHEET_ID_HERE"
+WORKSHEET_NAME = "Daily Stats"
 
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# ---- SLASH COMMANDS ----
+# ----- SLASH COMMANDS -----
 
 @bot.tree.command(name="ping", description="Replies with Pong!")
 async def ping(interaction: discord.Interaction):
@@ -16,16 +21,18 @@ async def ping(interaction: discord.Interaction):
 
 @bot.tree.command(name="sheet", description="Shows first row of Daily Stats")
 async def sheet(interaction: discord.Interaction):
-    data = get_sheet_data(SPREADSHEET_ID, "Daily Stats")
+    data = get_sheet_data(SPREADSHEET_ID, WORKSHEET_NAME)
 
     if not data:
-        await interaction.response.send_message("No data found.")
+        await interaction.response.send_message("No data found or error reading sheet.")
         return
 
+    # Send first row as a readable string
     first_row = data[0]
-    await interaction.response.send_message(f"First row:\n{first_row}")
+    formatted = "\n".join(f"{k}: {v}" for k, v in first_row.items())
+    await interaction.response.send_message(f"First row:\n{formatted}")
 
-# ---- EVENTS ----
+# ----- EVENTS -----
 
 @bot.event
 async def on_ready():
