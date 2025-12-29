@@ -40,3 +40,21 @@ async def on_ready():
     print(f"Logged in as {bot.user} (slash commands synced)")
 
 bot.run(os.getenv("DISCORD_TOKEN"))
+
+@bot.tree.command(name="sheetrange", description="Shows a specific range from the sheet")
+async def sheetrange(interaction: discord.Interaction):
+    # Example: B4:C12
+    cell_range = "B4:C12"
+    data = get_sheet_data(SPREADSHEET_ID, WORKSHEET_NAME, cell_range)
+
+    if not data:
+        await interaction.response.send_message("No data found or error reading sheet.")
+        return
+
+    # Format nicely as a table
+    formatted = ""
+    for row in data:
+        formatted += " | ".join(str(cell) for cell in row) + "\n"
+
+    # Discord messages have a limit; use code block for table formatting
+    await interaction.response.send_message(f"```\n{formatted}```")
