@@ -1,0 +1,12 @@
+from discord.ext import tasks
+
+@tasks.loop(hours=24)
+async def daily_sheet_check():
+    data = get_sheet_data(SPREADSHEET_ID, "Sheet1")
+    print("Daily sheet data pulled:", len(data))
+
+@bot.event
+async def on_ready():
+    await bot.tree.sync()
+    daily_sheet_check.start()
+    print("Bot ready")
