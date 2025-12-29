@@ -3,11 +3,10 @@ import json
 import gspread
 from google.oauth2.service_account import Credentials
 
-def get_sheet_data(spreadsheet_id, worksheet_name):
+def get_sheet_data(spreadsheet_id, worksheet_name, cell_range=None):
     """
-    Pulls all records from a Google Sheet worksheet.
-
-    Returns a list of dicts.
+    Pulls data from a Google Sheet worksheet.
+    If cell_range is provided, only that range is returned.
     """
     try:
         creds_json = json.loads(os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON"))
@@ -18,7 +17,11 @@ def get_sheet_data(spreadsheet_id, worksheet_name):
         client = gspread.authorize(credentials)
         sheet = client.open_by_key(spreadsheet_id).worksheet(worksheet_name)
 
-        return sheet.get_all_records()
+        if cell_range:
+            # Returns a 2D list of values
+            return sheet.get(cell_range)
+        else:
+            return sheet.get_all_records()
     except Exception as e:
         print("Error reading Google Sheet:", e)
         return []
