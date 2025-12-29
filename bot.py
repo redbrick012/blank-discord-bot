@@ -58,7 +58,7 @@ async def dailyrange(interaction: discord.Interaction):
 @tasks.loop(minutes=1)
 async def daily_post():
     now = datetime.utcnow()  # UTC time; adjust if needed
-    target = dt_time(hour=20, minute=0)  # 20:00 = 8 PM UTC
+    target = dt_time(hour=09, minute=0)  # 20:00 = 8 PM UTC
 
     if now.time().hour == target.hour and now.time().minute == target.minute:
         channel = bot.get_channel(CHANNEL_ID)
