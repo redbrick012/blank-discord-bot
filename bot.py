@@ -3,14 +3,16 @@
 
 import os
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from sheets import get_sheet_data
+from datetime import datetime, time as dt_time
 
 # ----------------------------
 # CONFIGURATION
 # ----------------------------
 SPREADSHEET_ID = "1HKZ_4m-U-9r3Tqdzn98Ztul7XkifyU9Pn2t_ur8QW8I"  # replace with your Google Sheet ID
 WORKSHEET_NAME = "Daily Stats"
+CHANNEL_ID = 1455146969579126951  # replace with your Discord channel ID for daily posts
 
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
@@ -18,7 +20,6 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 # ----------------------------
 # SLASH COMMANDS
 # ----------------------------
-
 @bot.tree.command(name="ping", description="Replies with Pong!")
 async def ping(interaction: discord.Interaction):
     await interaction.response.send_message("Pong!")
@@ -52,13 +53,33 @@ async def dailyrange(interaction: discord.Interaction):
     await interaction.response.send_message(f"```\n{formatted}```")
 
 # ----------------------------
+# DAILY TASK
+# ----------------------------
+@tasks.loop(minutes=1)
+async def daily_post():
+    now = datetime.utcnow()  # UTC time; adjust if needed
+    target = dt_time(hour=20, minute=0)  # 20:00 = 8 PM UTC
+
+    if now.time().hour == target.hour and now.time().minute == target.minute:
+        channel = bot.get_channel(CHANNEL_ID)
+        if channel:
+            data = get_sheet_data(SPREADSHEET_ID, WORKSHEET_NAME, "B4:C12")
+            if not data:
+                await channel.send("No data found for today.")
+                return
+            formatted = "\n".join(" | ".join(str(cell) for cell in row) for row in data)
+            await channel.send(f"Daily Stats:\n```\n{formatted}\n```")
+        else:
+            print("Channel not found for daily post.")
+
+# ----------------------------
 # EVENTS
 # ----------------------------
-
 @bot.event
 async def on_ready():
     await bot.tree.sync()
     print(f"Logged in as {bot.user} (slash commands synced)")
+    daily_post.start()  # start daily loop
 
 # ----------------------------
 # RUN BOT
