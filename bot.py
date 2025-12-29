@@ -38,20 +38,14 @@ async def sheet(interaction: discord.Interaction):
 
 @bot.tree.command(name="dailyrange", description="Shows B4:C12 from Daily Stats sheet")
 async def dailyrange(interaction: discord.Interaction):
-    cell_range = "B4:C12"
-
-    data = get_sheet_data(SPREADSHEET_ID, WORKSHEET_NAME, cell_range)
+    data = get_sheet_data(SPREADSHEET_ID, WORKSHEET_NAME, "B4:C12")
 
     if not data:
-        await interaction.response.send_message("No data found or error reading sheet.")
+        await interaction.response.send_message("No data found.")
         return
 
-    formatted = ""
-    for row in data:
-        formatted += " | ".join(str(cell) for cell in row) + "\n"
-
-    await interaction.response.send_message(f"```\n{formatted}```")
-
+    table = format_table(data)
+    await interaction.response.send_message(f"```\n{table}\n```")
 # ----------------------------
 # DAILY TASK
 # ----------------------------
