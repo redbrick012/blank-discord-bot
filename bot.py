@@ -17,7 +17,7 @@ SPREADSHEET_ID = "1HKZ_4m-U-9r3Tqdzn98Ztul7XkifyU9Pn2t_ur8QW8I"
 WORKSHEET_NAME = "Daily Stats"
 DAILY_RANGE = "B4:C12"
 
-CHANNEL_ID = 1455146969579126951 # Channel to post daily stats
+CHANNEL_ID = 1455146969579126951  # Discord channel ID for daily posts
 
 # -------------------------------------------------
 # BOT SETUP
@@ -62,6 +62,9 @@ async def ping(interaction: discord.Interaction):
     description="Show Daily Stats (B4:C12)"
 )
 async def dailystats(interaction: discord.Interaction):
+    # Acknowledge immediately (prevents timeout)
+    await interaction.response.defer()
+
     data = get_sheet_data(
         SPREADSHEET_ID,
         WORKSHEET_NAME,
@@ -69,28 +72,33 @@ async def dailystats(interaction: discord.Interaction):
     )
 
     if not data:
-        await interaction.response.send_message(
-            "❌ No data found."
-        )
+        await interaction.followup.send("❌ No data found.")
         return
 
     table = format_table(data)
-    await interaction.response.send_message(
+    await interaction.followup.send(
         f"📊 **Daily Stats**\n```{table}```"
     )
 
 # -------------------------------------------------
-# DAILY 8PM TASK (UTC)
+# DAILY 9 AM UTC TASK
 # -------------------------------------------------
+last_post_date = None
+
 @tasks.loop(minutes=1)
 async def daily_post():
-    now = datetime.utcnow()
-    target = dt_time(hour=9, minute=0)  # 8 PM UTC
+    global last_post_date
 
-    if now.hour == target.hour and now.minute == target.minute:
+    now_utc = datetime.utcnow()
+    today = now_utc.date()
+
+    if now_utc.hour == 9 and now_utc.minute == 0:
+        if last_post_date == today:
+            return  # Already posted today
+
         channel = bot.get_channel(CHANNEL_ID)
         if not channel:
-            print("Daily post channel not found")
+            print("❌ Daily post channel not found")
             return
 
         data = get_sheet_data(
@@ -108,6 +116,8 @@ async def daily_post():
             f"📅 **Daily Stats**\n```{table}```"
         )
 
+        last_post_date = today
+
 # -------------------------------------------------
 # EVENTS
 # -------------------------------------------------
@@ -115,6 +125,7 @@ async def daily_post():
 async def on_ready():
     await bot.tree.sync()
     print(f"✅ Logged in as {bot.user}")
+
     if not daily_post.is_running():
         daily_post.start()
 
