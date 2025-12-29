@@ -60,33 +60,28 @@ def get_cached_sheet():
 # TABLE FORMATTER
 # -------------------------------------------------
 def format_table(data):
-    if not data:
+    if not data or not any(data):
         return "No data."
 
-    # If data is a list of dicts, convert to rows
+    # Convert list of dicts to list of lists
     if isinstance(data[0], dict):
         headers = list(data[0].keys())
         rows = [headers]
-
         for item in data:
             rows.append([str(item.get(h, "")) for h in headers])
     else:
-        # Assume list of lists
-        rows = [[str(cell) for cell in row] for row in data]
+        # Ensure all rows are lists and have same length
+        max_len = max(len(row) for row in data)
+        rows = [ [str(cell) for cell in row] + [""]*(max_len - len(row)) for row in data ]
 
-    col_widths = [
-        max(len(row[i]) for row in rows)
-        for i in range(len(rows[0]))
-    ]
+    # Calculate column widths safely
+    col_widths = [max(len(row[i]) for row in rows) for i in range(len(rows[0]))]
 
+    # Build formatted table
     formatted_rows = []
     for row in rows:
-        formatted_rows.append(
-            " | ".join(
-                row[i].ljust(col_widths[i])
-                for i in range(len(row))
-            )
-        )
+        line = " | ".join(row[i].ljust(col_widths[i]) for i in range(len(row)))
+        formatted_rows.append(line)
 
     return "\n".join(formatted_rows)
 
