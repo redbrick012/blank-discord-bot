@@ -1,4 +1,4 @@
 discord.py
-google-api-python-client
+gspread
 google-auth
 google-auth-oauthlib
