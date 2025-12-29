@@ -6,14 +6,18 @@ import discord
 from discord.ext import commands
 from sheets import get_sheet_data
 
-# Google Sheet ID (replace with your own)
-SPREADSHEET_ID = "YOUR_SPREADSHEET_ID_HERE"
+# ----------------------------
+# CONFIGURATION
+# ----------------------------
+SPREADSHEET_ID = "1HKZ_4m-U-9r3Tqdzn98Ztul7XkifyU9Pn2t_ur8QW8I"  # replace with your Google Sheet ID
 WORKSHEET_NAME = "Daily Stats"
 
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# ----- SLASH COMMANDS -----
+# ----------------------------
+# SLASH COMMANDS
+# ----------------------------
 
 @bot.tree.command(name="ping", description="Replies with Pong!")
 async def ping(interaction: discord.Interaction):
@@ -27,35 +31,36 @@ async def sheet(interaction: discord.Interaction):
         await interaction.response.send_message("No data found or error reading sheet.")
         return
 
-    # Send first row as a readable string
     first_row = data[0]
     formatted = "\n".join(f"{k}: {v}" for k, v in first_row.items())
     await interaction.response.send_message(f"First row:\n{formatted}")
 
-# ----- EVENTS -----
+@bot.tree.command(name="dailyrange", description="Shows B4:C12 from Daily Stats sheet")
+async def dailyrange(interaction: discord.Interaction):
+    cell_range = "B4:C12"
+
+    data = get_sheet_data(SPREADSHEET_ID, WORKSHEET_NAME, cell_range)
+
+    if not data:
+        await interaction.response.send_message("No data found or error reading sheet.")
+        return
+
+    formatted = ""
+    for row in data:
+        formatted += " | ".join(str(cell) for cell in row) + "\n"
+
+    await interaction.response.send_message(f"```\n{formatted}```")
+
+# ----------------------------
+# EVENTS
+# ----------------------------
 
 @bot.event
 async def on_ready():
     await bot.tree.sync()
     print(f"Logged in as {bot.user} (slash commands synced)")
 
+# ----------------------------
+# RUN BOT
+# ----------------------------
 bot.run(os.getenv("DISCORD_TOKEN"))
-
-@bot.tree.command(name="dailyrange", description="Shows B4:C12 from Daily Stats sheet")
-async def dailyrange(interaction: discord.Interaction):
-    # Sheet name and range
-    worksheet_name = "Daily Stats"
-    cell_range = "B4:C12"
-
-    data = get_sheet_data(SPREADSHEET_ID, worksheet_name, cell_range)
-
-    if not data:
-        await interaction.response.send_message("No data found or error reading sheet.")
-        return
-
-    # Format as a table in a code block
-    formatted = ""
-    for row in data:
-        formatted += " | ".join(str(cell) for cell in row) + "\n"
-
-    await interaction.response.send_message(f"```\n{formatted}```")
