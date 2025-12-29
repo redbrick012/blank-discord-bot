@@ -85,7 +85,7 @@ async def dailystats(interaction: discord.Interaction):
 @tasks.loop(minutes=1)
 async def daily_post():
     now = datetime.utcnow()
-    target = dt_time(hour=09, minute=0)  # 8 PM UTC
+    target = dt_time(hour=9, minute=0)  # 8 PM UTC
 
     if now.hour == target.hour and now.minute == target.minute:
         channel = bot.get_channel(CHANNEL_ID)
