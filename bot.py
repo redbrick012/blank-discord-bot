@@ -21,11 +21,11 @@ bot.run(os.getenv("DISCORD_TOKEN"))
 
 from sheets import get_sheet_data
 
-SPREADSHEET_ID = "YOUR_SPREADSHEET_ID"
+SPREADSHEET_ID = "1HKZ_4m-U-9r3Tqdzn98Ztul7XkifyU9Pn2t_ur8QW8I"
 
 @bot.tree.command(name="sheet")
 async def sheet(interaction: discord.Interaction):
-    data = get_sheet_data(SPREADSHEET_ID, "Sheet1")
+    data = get_sheet_data(SPREADSHEET_ID, "Daily Stats")
 
     if not data:
         await interaction.response.send_message("No data found.")
