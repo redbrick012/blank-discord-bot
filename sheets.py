@@ -2,16 +2,13 @@ import os
 import gspread
 from google.oauth2.service_account import Credentials
 
-# ===== Spreadsheet config =====
+# ---------- CONFIG ----------
 SHEET_ID = os.environ["SHEET_ID"]
 
-STATS_SHEET = "Daily Stats"
-WATCH_SHEET = "logs"
+WATCH_SHEET = "Logs"          # EXACT tab name
+STATS_SHEET = "Daily Stats"   # EXACT tab name
 
-SCOPES = [
-    "https://www.googleapis.com/auth/spreadsheets.readonly"
-]
-
+# ---------- AUTH ----------
 def get_client():
     creds = Credentials.from_service_account_info(
         {
@@ -26,51 +23,42 @@ def get_client():
             "auth_provider_x509_cert_url": os.environ["GS_AUTH_PROVIDER_CERT_URL"],
             "client_x509_cert_url": os.environ["GS_CLIENT_CERT_URL"],
         },
-        scopes=SCOPES,
+        scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"],
     )
     return gspread.authorize(creds)
 
-
+# ---------- CORE ----------
 def get_sheet(sheet_name):
-    """
-    Safely return worksheet or None if it does not exist.
-    """
     gc = get_client()
     sh = gc.open_by_key(SHEET_ID)
 
     try:
         return sh.worksheet(sheet_name)
     except gspread.WorksheetNotFound:
-        return None
+        raise Exception(f"❌ Sheet '{sheet_name}' not found")
 
-
-def get_sheet_values(sheet_name, range_notation=None):
-    """
-    Returns values from a sheet or range.
-    """
+def get_sheet_values(sheet_name, cell_range=None):
     ws = get_sheet(sheet_name)
-    if not ws:
-        return []
 
-    if range_notation:
-        return ws.get(range_notation)
-    return ws.get_all_values()
+    if cell_range:
+        values = ws.get(cell_range)
+    else:
+        values = ws.get_all_values()
 
+    # 🔍 Debug visibility
+    print(f"[Sheets] Read {len(values)} rows from '{sheet_name}'")
+
+    return values
 
 def get_row_count(sheet_name):
-    """
-    Returns number of non-empty rows.
-    """
     values = get_sheet_values(sheet_name)
     return len(values)
 
-
 def get_daily_stats():
-    """
-    Reads B6:C11 from 'Daily Stats'
-    Returns (rows, total)
-    """
-    values = get_sheet_values(STATS_SHEET, "B6:C11")
+    ws = get_sheet(STATS_SHEET)
+
+    # You said your table is B6:C11
+    values = ws.get("B6:C11")
 
     rows = []
     total = 0
@@ -79,14 +67,13 @@ def get_daily_stats():
         if len(row) < 2:
             continue
 
-        name, value = row[0], row[1]
-
+        name = row[0].strip()
         try:
-            value = int(value)
+            count = int(row[1])
         except ValueError:
             continue
 
-        rows.append((name, value))
-        total += value
+        rows.append((name, count))
+        total += count
 
     return rows, total
