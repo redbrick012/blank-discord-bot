@@ -8,7 +8,7 @@ from discord.ext import tasks, commands
 from datetime import datetime, time, timedelta
 import asyncio
 
-from sheets import get_daily_stats, get_row_count, WATCH_SHEET, STATS_SHEET
+from sheets import get_daily_stats, get_row_count, get_sheet_values, WATCH_SHEET, STATS_SHEET
 
 # --- Environment Variables ---
 DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
