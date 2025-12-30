@@ -2,7 +2,14 @@
 #SPREADSHEET_ID = "1HKZ_4m-U-9r3Tqdzn98Ztul7XkifyU9Pn2t_ur8QW8I"
 #CHANNEL_ID = 1455146969579126951
 
-import os
+
+    await interaction.response.send_message(embed=embed)
+
+bot.tree.add_command(dailystats)
+
+# ---------------- Tasks ---------------- #
+
+@tasks.loop(seconds=60)  # check every minuteimport os
 import discord
 from discord.ext import tasks, commands
 from discord import app_commands
@@ -87,5 +94,25 @@ async def sheet_watch_task():
     if current_rows > last_known_rows:
         new_rows = get_sheet_values(WATCH_SHEET)[last_known_rows:current_rows]
         channel = bot.get_channel(STATS_CHANNEL_ID)
-        embed =
+        embed = build_new_log_embed(new_rows)
+        await channel.send(embed=embed)
+        last_known_rows = current_rows
 
+@tasks.loop(hours=24)
+async def daily_stats_task():
+    now = datetime.utcnow()
+    target_time = dtime(hour=9, minute=0)  # 9:00 AM UTC
+    first_run = datetime.combine(now.date(), target_time)
+    if now > first_run:
+        first_run += timedelta(days=1)
+    wait_seconds = (first_run - now).total_seconds()
+    await asyncio.sleep(wait_seconds)
+
+    channel = bot.get_channel(STATS_CHANNEL_ID)
+    rows, total = get_daily_stats()
+    embed = build_daily_stats_embed(rows, total)
+    await channel.send(embed=embed)
+
+# ---------------- Run Bot ---------------- #
+
+bot.run(DISCORD_TOKEN)
