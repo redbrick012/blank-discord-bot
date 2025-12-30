@@ -78,13 +78,15 @@ async def sheet_watch_task():
 # --------------------
 # Background Tasks
 # --------------------
-@tasks.loop(time=None)  # you can set a specific datetime.time for scheduled tasks
+@tasks.loop(time=time(hour=9, minute=0))  # Runs daily at 9:00 AM
 async def daily_stats_task():
-    channel = bot.get_channel(STATS_CHANNEL_ID)
-    rows, total = get_daily_stats()
-    if rows:
+    try:
+        rows, total = get_daily_stats()  # your function to fetch data from the sheet
         embed = build_daily_stats_embed(rows, total)
+        channel = bot.get_channel(STATS_CHANNEL_ID)
         await channel.send(embed=embed)
+    except Exception as e:
+        print(f"Error in daily_stats_task: {e}")
 
 # --------------------
 # Events
