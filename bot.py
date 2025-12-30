@@ -25,17 +25,29 @@ last_known_rows = 0
 def build_daily_stats_embed(rows, total):
     yesterday = datetime.now() - timedelta(days=1)
 
+    # Function to convert header text to bold-looking Unicode
+    def bold_text(text):
+        bold_map = str.maketrans(
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
+            "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭"
+            "𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘷𝘄𝘅𝘆𝘇"
+        )
+        return text.translate(bold_map)
+
+    # Prepare table
     lines = []
-    lines.append(f"**{'Person':<10} {'Items Sent':>10}**")
-    lines.append("-" * 22)
+    lines.append("```")
+    lines.append(f"{bold_text('Person'):<15} | {bold_text('Items Sent'):>10}")
+    lines.append("═" * 28)
 
     for person, count in rows:
-        lines.append(f"{person:<10} {count:>10}")
+        lines.append(f"{person:<15} | {count:>10}")
 
-    lines.append("-" * 22)
-    lines.append(f"**{'Total Sent':<10} {total:>10}**")
+    lines.append("═" * 28)
+    lines.append(f"💰 {bold_text('Total Sent'):<13} | {total:>10}")
+    lines.append("```")
 
-    table = "\n".join(lines)  # no code block
+    table = "\n".join(lines)
 
     embed = discord.Embed(
         title=f"📅 Daily Stats – {yesterday.strftime('%A, %d %B %Y')}",
@@ -49,7 +61,6 @@ def build_daily_stats_embed(rows, total):
     )
 
     return embed
-
 
 # --- Slash command using @bot.tree.command() ---
 @bot.tree.command(name="dailystats", description="Show today's daily stats")
