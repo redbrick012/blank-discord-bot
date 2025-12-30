@@ -26,33 +26,28 @@ def build_daily_stats_embed(rows, total):
     yesterday = datetime.now() - timedelta(days=1)
     date_str = yesterday.strftime("%A, %d %B %Y")
 
+    lines = []
+    lines.append(f"{'Person':<10} {'Items Sent':>10}")
+    lines.append("-" * 22)
+    
+    for person, count in rows:
+        lines.append(f"{person:<10} {count:>10}")
+    
+    lines.append("-" * 22)
+    lines.append(f"{'Total Sent':<10} {total:>10}")
+    
+    table = "```text\n" + "\n".join(lines) + "\n```"
+    
     embed = discord.Embed(
-        title=f"📅 Daily Stats — {date_str}",
-        color=discord.Color.dark_teal()
+        title=f"📅 Daily Stats – {yesterday.strftime('%A, %d %B %Y')}",
+        color=discord.Color.green()
     )
-
+    
     embed.add_field(
-        name="Person | Items Sent",
-        value="\n".join(f"{name} | {value}" for name, value in rows),
+        name="Daily Breakdown",
+        value=table,
         inline=False
     )
-
-    embed.add_field(
-        name="Total Sent",
-        value=f"**{total}**",
-        inline=False
-    )
-
-    return embed
-
-
-    people_column = "\n".join(str(name) for name, _ in rows)
-    items_column = "\n".join(str(value) for _, value in rows)
-
-    embed.add_field(name="Person", value=people_column, inline=True)
-    embed.add_field(name="Items Sent", value=items_column, inline=True)
-    embed.add_field(name="Total Sent", value=f"**{total}**", inline=False)
-    return embed
 
 # --- Slash command using @bot.tree.command() ---
 @bot.tree.command(name="dailystats", description="Show today's daily stats")
