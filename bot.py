@@ -6,7 +6,7 @@ import os
 import asyncio
 import discord
 from discord.ext import commands, tasks
-from sheets import get_daily_stats, get_row_count, get_sheet_values, WATCH_SHEET, DAILY_STATS_SHEET
+from sheets import get_daily_stats, get_row_count, get_sheet_values, WATCH_SHEET, STATS_SHEET
 
 # --------------------
 # Discord Setup
