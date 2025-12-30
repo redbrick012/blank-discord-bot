@@ -86,41 +86,50 @@ async def daily_stats_task():
     await channel.send(embed=embed)
 
 # --- Sheet watcher task ---
-@tasks.loop(seconds=60)
+@@tasks.loop(seconds=60)
 async def sheet_watch_task():
     global last_known_rows
 
     values = get_sheet_values(WATCH_SHEET)
     current_rows = len(values)
 
-    if current_rows > last_known_rows:
-        channel = bot.get_channel(STATS_CHANNEL_ID)
-        if not channel:
-            return
+    # Nothing new
+    if current_rows <= last_known_rows:
+        return
 
-        # Get newly added rows
-        new_rows = values[last_known_rows:current_rows]
+    channel = bot.get_channel(STATS_CHANNEL_ID)
+    if not channel:
+        return
 
-        for row in new_rows:
-            formatted = " | ".join(cell or "—" for cell in row)
-            await channel.send(
-                f"🆕 **New entry added to `{WATCH_SHEET}`**\n"
-                f"```{formatted}```"
-            )
+    # Get ONLY newly appended rows
+    new_rows = values[last_known_rows:current_rows]
 
-        last_known_rows = current_rows
+    for row in new_rows:
+        formatted = " | ".join(cell if cell else "—" for cell in row)
 
+        await channel.send(
+            f"🆕 **New entry added to `{WATCH_SHEET}`**\n"
+            f"```text\n{formatted}\n```"
+        )
 
+    last_known_rows = current_rows
 # --- Events ---
 @bot.event
 async def on_ready():
     global last_known_rows
+
     print(f"✅ Logged in as {bot.user}")
-    # Initialize last known rows    
+
+    # Initialize last known rows
     last_known_rows = get_row_count(WATCH_SHEET)
-    # Start background tasks
-    daily_stats_task.start()
-    sheet_watch_task.start()
+
+    # Start background tasks safely
+    if not daily_stats_task.is_running():
+        daily_stats_task.start()
+
+    if not sheet_watch_task.is_running():
+        sheet_watch_task.start()
+
     # Sync slash commands
     await bot.tree.sync()
 
