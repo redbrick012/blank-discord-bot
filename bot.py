@@ -23,7 +23,6 @@ last_known_rows = 0
 
 # --- Embed builder ---
 def build_daily_stats_embed(rows, total):
-    def build_daily_stats_embed(rows, total):
     yesterday = datetime.now() - timedelta(days=1)
 
     lines = []
@@ -49,7 +48,7 @@ def build_daily_stats_embed(rows, total):
         inline=False
     )
 
-    return embed  # ✅ REQUIRED
+    return embed
 
 # --- Slash command using @bot.tree.command() ---
 @bot.tree.command(name="dailystats", description="Show today's daily stats")
