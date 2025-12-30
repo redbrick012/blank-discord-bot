@@ -54,7 +54,7 @@ def build_daily_stats_embed(rows, total):
 async def dailystats(interaction: discord.Interaction):
     rows, total = get_daily_stats()
     embed = build_daily_stats_embed(rows, total)
-    await interaction.response.send_message(embed=embed)
+    await interaction.followup.send(embed=embed)
 
 # --- Daily stats task at 9 AM ---
 @tasks.loop(time=time(hour=9, minute=0, second=0))
@@ -98,7 +98,7 @@ async def sheet_watch_task():
 async def on_ready():
     global last_known_rows
     print(f"✅ Logged in as {bot.user}")
-    # Initialize last known rows
+    # Initialize last known rows    
     last_known_rows = get_row_count(WATCH_SHEET)
     # Start background tasks
     daily_stats_task.start()
