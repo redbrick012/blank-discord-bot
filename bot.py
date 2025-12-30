@@ -84,17 +84,30 @@ async def lastlog(interaction: discord.Interaction):
         )
         return
 
-    # Skip header row, take last real entry
-    last_row = values[-1]
+    headers = values[0]
+
+    # Find last non-empty row (from bottom up)
+    last_row = None
+    for row in reversed(values[1:]):  # skip header
+        if any(cell.strip() for cell in row if cell):
+            last_row = row
+            break
+
+    if not last_row:
+        await interaction.response.send_message(
+            "No log entries found.",
+            ephemeral=True
+        )
+        return
 
     embed = discord.Embed(
         title="📝 Latest Log Entry",
         color=discord.Color.orange()
     )
 
-    for i, cell in enumerate(last_row, start=1):
+    for header, cell in zip(headers, last_row):
         embed.add_field(
-            name=f"Column {i}",
+            name=header,
             value=cell or "—",
             inline=False
         )
