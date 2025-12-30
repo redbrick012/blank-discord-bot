@@ -24,15 +24,27 @@ last_known_rows = 0
 # --- Embed builder ---
 def build_daily_stats_embed(rows, total):
     yesterday = datetime.now() - timedelta(days=1)
-    formatted_date = yesterday.strftime("%A, %d %B %Y")
-    #date_str = datetime.now().strftime("%A, %d %B %Y")
+    date_str = yesterday.strftime("%A, %d %B %Y")
+
     embed = discord.Embed(
-        title=f"📅 Daily Stats - {formatted_date}",
+        title=f"📅 Daily Stats — {date_str}",
         color=discord.Color.dark_teal()
     )
-    if not rows:
-        embed.description = "No data available."
-        return embed
+
+    embed.add_field(
+        name="Person | Items Sent",
+        value="\n".join(f"{name} | {value}" for name, value in rows),
+        inline=False
+    )
+
+    embed.add_field(
+        name="Total Sent",
+        value=f"**{total}**",
+        inline=False
+    )
+
+    return embed
+
 
     people_column = "\n".join(str(name) for name, _ in rows)
     items_column = "\n".join(str(value) for _, value in rows)
