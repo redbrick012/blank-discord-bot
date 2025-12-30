@@ -3,109 +3,76 @@
 #CHANNEL_ID = 1455146969579126951
 
 import os
-import discord
-from discord.ext import tasks, commands
-from discord import app_commands
-from sheets import get_daily_stats, get_row_count, WATCH_SHEET
 import asyncio
-from datetime import datetime, time as dtime, timedelta
+import discord
+from discord.ext import tasks
+from sheets import get_daily_stats, get_row_count, get_sheet_values, DAILY_STATS_SHEET, LOGS_SHEET
 
-# Environment variables
 DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN")
 STATS_CHANNEL_ID = int(os.environ.get("STATS_CHANNEL_ID"))
 
-# Bot setup
 intents = discord.Intents.default()
-intents.message_content = True  # Needed for commands
-bot = commands.Bot(command_prefix="!", intents=intents)
+intents.message_content = True
 
-# Keep track of last known row for the logs tab
-last_known_rows = 0
+bot = discord.Bot(intents=intents)
 
-# ---------------- Embed Builders ---------------- #
+last_known_log_rows = 0
 
+# Build daily stats embed
 def build_daily_stats_embed(rows, total):
     embed = discord.Embed(
-        title="📅 Daily Stats - {datetime.utcnow():%A, %d %B %Y}",
+        title="📅 Daily Stats",
         color=discord.Color.dark_teal()
     )
 
-    # Combine names and values in one line each
-    stats_lines = [f"{name}: {value}" for name, value in rows]
-    embed.add_field(
-        name="Stats",
-        value="\n".join(stats_lines) if stats_lines else "No data available.",
-        inline=False
-    )
+    # Build table-like text
+    table_text = ""
+    for person, items in rows:
+        table_text += f"**{person}** | {items}\n"
 
-    embed.add_field(
-        name="Total Sent",
-        value=f"**{total}**",
-        inline=False
-    )
-
+    embed.add_field(name="Stats", value=table_text if table_text else "No data available.", inline=False)
+    embed.add_field(name="Total Sent", value=f"**{total}**", inline=False)
     return embed
 
-def build_new_log_embed(new_rows):
-    embed = discord.Embed(
-        title=f"🆕 New Log Entry in `{WATCH_SHEET}`",
-        color=discord.Color.orange()
-    )
-    for idx, row in enumerate(new_rows, start=1):
-        embed.add_field(
-            name=f"Row {idx}",
-            value=" | ".join(row),
-            inline=False
-        )
-    return embed
+# Command to show daily stats
+@bot.slash_command(name="dailystats", description="Show today's stats")
+async def dailystats(ctx):
+    rows, total = get_daily_stats()
+    embed = build_daily_stats_embed(rows, total)
+    await ctx.respond(embed=embed)
 
-# ---------------- Commands ---------------- #
+# Background task: send daily stats at 9am
+@tasks.loop(minutes=1)
+async def daily_stats_task():
+    now = discord.utils.utcnow().astimezone()
+    if now.hour == 9 and now.minute == 0:
+        rows, total = get_daily_stats()
+        embed = build_daily_stats_embed(rows, total)
+        channel = bot.get_channel(STATS_CHANNEL_ID)
+        if channel:
+            await channel.send(embed=embed)
+
+# Background task: watch Logs tab for new rows
+@tasks.loop(seconds=60)
+async def sheet_watch_task():
+    global last_known_log_rows
+    current_rows = get_row_count(LOGS_SHEET)
+    if current_rows > last_known_log_rows:
+        new_entries = get_sheet_values(LOGS_SHEET)[last_known_log_rows:]
+        channel = bot.get_channel(STATS_CHANNEL_ID)
+        msg = "🆕 **New entries added to Logs**\n"
+        for row in new_entries:
+            msg += " | ".join(row) + "\n"
+        if channel:
+            await channel.send(msg)
+        last_known_log_rows = current_rows
 
 @bot.event
 async def on_ready():
-    global last_known_rows
+    global last_known_log_rows
     print(f"✅ Logged in as {bot.user}")
-    last_known_rows = get_row_count(WATCH_SHEET)
-    # Start background tasks
+    last_known_log_rows = get_row_count(LOGS_SHEET)
     daily_stats_task.start()
     sheet_watch_task.start()
-
-@app_commands.command(name="dailystats", description="Show today's daily stats")
-async def dailystats(interaction: discord.Interaction):
-    rows, total = get_daily_stats()
-    embed = build_daily_stats_embed(rows, total)
-    await interaction.response.send_message(embed=embed)
-
-bot.tree.add_command(dailystats)
-
-# ---------------- Tasks ---------------- #
-
-@tasks.loop(seconds=60)  # check every minute
-async def sheet_watch_task():
-    global last_known_rows
-    current_rows = get_row_count(WATCH_SHEET)
-    if current_rows > last_known_rows:
-        new_rows = get_sheet_values(WATCH_SHEET)[last_known_rows:current_rows]
-        channel = bot.get_channel(STATS_CHANNEL_ID)
-        embed = build_new_log_embed(new_rows)
-        await channel.send(embed=embed)
-        last_known_rows = current_rows
-
-@tasks.loop(hours=24)
-async def daily_stats_task():
-    now = datetime.utcnow()
-    target_time = dtime(hour=9, minute=0)  # 9:00 AM UTC
-    first_run = datetime.combine(now.date(), target_time)
-    if now > first_run:
-        first_run += timedelta(days=1)
-    wait_seconds = (first_run - now).total_seconds()
-    await asyncio.sleep(wait_seconds)
-
-    channel = bot.get_channel(STATS_CHANNEL_ID)
-    rows, total = get_daily_stats()
-    embed = build_daily_stats_embed(rows, total)
-    await channel.send(embed=embed)
-
-# ---------------- Run Bot ---------------- #
 
 bot.run(DISCORD_TOKEN)
