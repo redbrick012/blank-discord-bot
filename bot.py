@@ -96,17 +96,23 @@ async def before_daily_stats():
 @tasks.loop(minutes=2)
 async def sheet_watch_task():
     global last_known_rows
+    await bot.wait_until_ready()
+    channel = bot.get_channel(STATS_CHANNEL_ID)
 
-    current_rows = get_row_count(WATCH_SHEET)
+    while not bot.is_closed():
+        current_rows = get_row_count(WATCH_SHEET)
+        if current_rows > last_known_rows:
+            all_values = get_sheet_values(os.environ["SHEET_ID"], WATCH_SHEET)
+            new_rows = all_values[last_known_rows:current_rows]
 
-    if current_rows > last_known_rows:
-        channel = bot.get_channel(STATS_CHANNEL_ID)
-        await channel.send(
-            f"🆕 **New entry added to `{WATCH_SHEET}`**\n"
-            f"Rows: `{last_known_rows} → {current_rows}`"
-        )
-        last_known_rows = current_rows
+            for row in new_rows:
+                # Format the new row nicely as columns
+                row_text = " | ".join(str(cell) for cell in row)
+                await channel.send(f"🆕 **New entry added to `{WATCH_SHEET}`**\n`{row_text}`")
 
+            last_known_rows = current_rows
+
+        await asyncio.sleep(60)  # check every minute
 @sheet_watch_task.before_loop
 async def before_sheet_watch():
     await bot.wait_until_ready()
