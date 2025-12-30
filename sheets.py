@@ -41,7 +41,7 @@ def get_sheet_values(sheet_name, start_row=1, end_row=None, start_col=1, end_col
 
 # Get daily stats rows and total
 def get_daily_stats():
-    rows_raw = get_sheet_values(DAILY_STATS_SHEET, start_row=2)  # skip header
+    rows_raw = get_sheet_values(DAILY_STATS_SHEET, start_row=6)  # skip header
     rows = []
     total = 0
     for row in rows_raw:
