@@ -5,7 +5,7 @@
 import os
 import discord
 from discord.ext import tasks, commands
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 import asyncio
 
 from sheets import get_daily_stats, get_row_count, WATCH_SHEET, STATS_SHEET
@@ -23,9 +23,11 @@ last_known_rows = 0
 
 # --- Embed builder ---
 def build_daily_stats_embed(rows, total):
-    date_str = datetime.now().strftime("%A, %d %B %Y")
+    yesterday = datetime.now() - timedelta(days=1)
+    formatted_date = yesterday.strftime("%A, %d %B %Y")
+    #date_str = datetime.now().strftime("%A, %d %B %Y")
     embed = discord.Embed(
-        title=f"📅 Daily Stats - {date_str}",
+        title=f"📅 Daily Stats - {formatted_date}",
         color=discord.Color.dark_teal()
     )
     if not rows:
@@ -62,16 +64,27 @@ async def daily_stats_task():
 @tasks.loop(seconds=60)
 async def sheet_watch_task():
     global last_known_rows
-    current_rows = get_row_count(WATCH_SHEET)
+
+    values = get_sheet_values(WATCH_SHEET)
+    current_rows = len(values)
+
     if current_rows > last_known_rows:
         channel = bot.get_channel(STATS_CHANNEL_ID)
-        if channel:
-            # Optionally you can show cell values here
+        if not channel:
+            return
+
+        # Get newly added rows
+        new_rows = values[last_known_rows:current_rows]
+
+        for row in new_rows:
+            formatted = " | ".join(cell or "—" for cell in row)
             await channel.send(
                 f"🆕 **New entry added to `{WATCH_SHEET}`**\n"
-                f"Rows: `{last_known_rows} → {current_rows}`"
+                f"```{formatted}```"
             )
+
         last_known_rows = current_rows
+
 
 # --- Events ---
 @bot.event
