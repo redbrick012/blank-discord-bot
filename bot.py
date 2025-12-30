@@ -5,70 +5,105 @@
 import os
 import asyncio
 import discord
-from discord.ext import tasks
-from sheets import get_daily_stats, get_row_count, get_sheet_values, DAILY_STATS_SHEET, LOGS_SHEET
+from discord.ext import commands, tasks
+from sheets import get_daily_stats, get_row_count, get_sheet_values, WATCH_SHEET, STATS_SHEET
 
-DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN")
-STATS_CHANNEL_ID = int(os.environ.get("STATS_CHANNEL_ID"))
-
+# --------------------
+# Discord Setup
+# --------------------
 intents = discord.Intents.default()
-intents.message_content = True
+intents.message_content = True  # only needed if reading messages
 
-bot = discord.Bot(intents=intents)  # discord.Bot supports slash commands
+bot = commands.Bot(
+    command_prefix="!",  # needed for commands.Bot but slash commands use bot.tree
+    intents=intents,
+    help_command=None
+)
 
-last_known_log_rows = 0
+STATS_CHANNEL_ID = int(os.environ["STATS_CHANNEL_ID"])
 
-# Build daily stats embed
+# --------------------
+# Embed Builder
+# --------------------
 def build_daily_stats_embed(rows, total):
     embed = discord.Embed(
         title=f"📅 Daily Stats - {datetime.utcnow():%A, %d %B %Y}",
         color=discord.Color.dark_teal()
     )
-    table_text = ""
-    for person, items in rows:
-        table_text += f"**{person}** | {items}\n"
 
-    embed.add_field(name="Stats", value=table_text if table_text else "No data available.", inline=False)
+    # Two-column layout
+    name_value = "\n".join(name for name, _ in rows)
+    items_value = "\n".join(str(value) for _, value in rows)
+
+    embed.add_field(name="Person", value=name_value, inline=True)
+    embed.add_field(name="Items Sent", value=items_value, inline=True)
     embed.add_field(name="Total Sent", value=f"**{total}**", inline=False)
+
     return embed
 
-# Slash command
-@bot.slash_command(name="dailystats", description="Show today's daily stats")
-async def dailystats(ctx: discord.ApplicationContext):
+# --------------------
+# Slash Command
+# --------------------
+@bot.tree.command(name="dailystats", description="Show today's daily stats")
+async def dailystats(interaction: discord.Interaction):
     rows, total = get_daily_stats()
+    if not rows:
+        await interaction.response.send_message("📅 Daily Stats\nNo data available.")
+        return
+
     embed = build_daily_stats_embed(rows, total)
-    await ctx.respond(embed=embed)
+    await interaction.response.send_message(embed=embed)
 
-# Background task: daily stats at 9am UTC
-@tasks.loop(minutes=1)
-async def daily_stats_task():
-    now = discord.utils.utcnow().astimezone()
-    if now.hour == 9 and now.minute == 0:
-        rows, total = get_daily_stats()
-        embed = build_daily_stats_embed(rows, total)
-        channel = bot.get_channel(STATS_CHANNEL_ID)
-        if channel:
-            await channel.send(embed=embed)
+# --------------------
+# Sheet Watcher
+# --------------------
+last_known_rows = 0  # will be updated on_ready
 
-# Background task: watch Logs tab
 @tasks.loop(seconds=60)
 async def sheet_watch_task():
-    global last_known_log_rows
-    current_rows = get_row_count(LOGS_SHEET)
-    if current_rows > last_known_log_rows:
-        new_entries = get_sheet_values(LOGS_SHEET)[last_known_log_rows:]
-        channel = bot.get_channel(STATS_CHANNEL_ID)
-        msg = "🆕 **New entries added to Logs**\n"
-        for row in new_entries:
-            msg += " | ".join(row) + "\n"
-        if channel:
-            await channel.send(msg)
-        last_known_log_rows = current_rows
+    global last_known_rows
+    current_rows = get_row_count(WATCH_SHEET)
 
+    if current_rows > last_known_rows:
+        channel = bot.get_channel(STATS_CHANNEL_ID)
+        # Fetch new rows
+        all_values = get_sheet_values(WATCH_SHEET)
+        new_rows = all_values[last_known_rows:current_rows]  # new entries
+        msg = "🆕 **New row(s) added:**\n"
+        for row in new_rows:
+            msg += " | ".join(row) + "\n"
+        await channel.send(msg)
+        last_known_rows = current_rows
+
+# --------------------
+# Background Tasks
+# --------------------
+@tasks.loop(time=None)  # you can set a specific datetime.time for scheduled tasks
+async def daily_stats_task():
+    channel = bot.get_channel(STATS_CHANNEL_ID)
+    rows, total = get_daily_stats()
+    if rows:
+        embed = build_daily_stats_embed(rows, total)
+        await channel.send(embed=embed)
+
+# --------------------
+# Events
+# --------------------
 @bot.event
 async def on_ready():
-    global last_known_log_rows
+    global last_known_rows
     print(f"✅ Logged in as {bot.user}")
-    last_known_log_rows = get_row_count(LOGS_SHEET)
+    last_known_rows = get_row_count(WATCH_SHEET)
+
+    # Start background tasks
     daily_stats_task.start()
     sheet_watch_task.start()
+
+    # Sync slash commands
+    await bot.tree.sync()
+    print("✅ Slash commands synced.")
+
+# --------------------
+# Run Bot
+# --------------------
+bot.run(os.environ["DISCORD_TOKEN"])
