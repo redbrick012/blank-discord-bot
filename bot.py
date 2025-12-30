@@ -114,6 +114,24 @@ async def lastlog(interaction: discord.Interaction):
 
     await interaction.response.send_message(embed=embed)
 
+@bot.tree.command(name="debugsheet", description="Debug: show last 10 raw rows")
+async def debugsheet(interaction: discord.Interaction):
+    values = get_sheet_values(WATCH_SHEET)
+
+    if not values:
+        await interaction.response.send_message(
+            "❌ get_sheet_values returned NOTHING",
+            ephemeral=True
+        )
+        return
+
+    last_rows = values[-10:]
+    text = "\n".join(str(row) for row in last_rows)
+
+    await interaction.response.send_message(
+        f"Rows seen: {len(values)}\n```{text}```",
+        ephemeral=True
+    )
 
 # --- Daily stats task at 9 AM ---
 @tasks.loop(time=time(hour=9, minute=0, second=0))
