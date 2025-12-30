@@ -23,38 +23,45 @@ last_known_rows = 0
 
 # --- Embed builder ---
 def build_daily_stats_embed(rows, total):
+    def build_daily_stats_embed(rows, total):
     yesterday = datetime.now() - timedelta(days=1)
-    date_str = yesterday.strftime("%A, %d %B %Y")
 
     lines = []
     lines.append(f"{'Person':<10} {'Items Sent':>10}")
     lines.append("-" * 22)
-    
+
     for person, count in rows:
         lines.append(f"{person:<10} {count:>10}")
-    
+
     lines.append("-" * 22)
     lines.append(f"{'Total Sent':<10} {total:>10}")
-    
+
     table = "```text\n" + "\n".join(lines) + "\n```"
-    
+
     embed = discord.Embed(
         title=f"📅 Daily Stats – {yesterday.strftime('%A, %d %B %Y')}",
         color=discord.Color.green()
     )
-    
+
     embed.add_field(
         name="Daily Breakdown",
         value=table,
         inline=False
     )
 
+    return embed  # ✅ REQUIRED
+
 # --- Slash command using @bot.tree.command() ---
 @bot.tree.command(name="dailystats", description="Show today's daily stats")
 async def dailystats(interaction: discord.Interaction):
+
+    await interaction.response.defer()  # ✅ THIS LINE FIXES 10015
+
     rows, total = get_daily_stats()
     embed = build_daily_stats_embed(rows, total)
+
     await interaction.followup.send(embed=embed)
+
 
 # --- Daily stats task at 9 AM ---
 @tasks.loop(time=time(hour=9, minute=0, second=0))
