@@ -33,22 +33,27 @@ def get_sheet_values(sheet_id, tab_name):
     sheet = client.open_by_key(sheet_id).worksheet(tab_name)
     return sheet.get_all_values()
 
-def get_daily_stats(tab_name=DAILY_STATS_TAB, range_start="B4", range_end="C12"):
-    """Return list of tuples [(person, items_sent), ...] skipping headers."""
-    client = get_client()
-    sheet = client.open_by_key(SHEET_ID).worksheet(tab_name)
-    values = sheet.get(f"{range_start}:{range_end}")
-    
-    result = []
-    for row in values:
-        if len(row) >= 2 and row[0] != "" and not row[0].lower().startswith("person"):
-            person = row[0]
-            items_sent = row[1] if row[1] != "" else "0"
-            try:
-                result.append((person, int(items_sent)))
-            except ValueError:
-                continue  # skip invalid numeric values
-    return result
+def get_daily_stats():
+    """
+    Returns:
+        rows: List of tuples (person, items_sent)
+        total: Sum of all items_sent
+    """
+    sheet_values = get_sheet_values("Daily Stats", start_row=2, end_row=None)  # skip header
+    rows = []
+    total = 0
+    for row in sheet_values:
+        if len(row) < 2:
+            continue
+        person = row[0].strip()
+        try:
+            items_sent = int(row[1])
+        except ValueError:
+            continue  # skip invalid numbers
+        rows.append((person, items_sent))
+        total += items_sent
+    return rows, total
+
 
 def get_row_count(tab_name=WATCH_SHEET):
     """Return number of rows in a tab."""
