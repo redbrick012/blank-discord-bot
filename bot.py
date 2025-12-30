@@ -34,38 +34,33 @@ async def on_ready():
 # EMBED BUILDER
 # -------------------------
 def build_daily_stats_embed(rows, total):
+def build_daily_stats_embed(rows, total):
     embed = discord.Embed(
         title="📅 Daily Stats",
         color=discord.Color.dark_teal()
     )
 
+    if not rows:
+        embed.add_field(name="No Data", value="No daily stats available.", inline=False)
+        return embed
+
     # Compute column widths for alignment
     name_width = max(len(name) for name, _ in rows + [("Person", 0)])
     value_width = max(len(str(value)) for _, value in rows + [("Items Sent", total)])
 
-    # Build the columns with padding
-    names_column = "\n".join(name.ljust(name_width) for name, _ in rows)
-    values_column = "\n".join(str(value).rjust(value_width) for _, value in rows)
+    # Build table lines
+    table_lines = []
+    table_lines.append(f"{'Person'.ljust(name_width)} | {'Items Sent'.rjust(value_width)}")
+    table_lines.append(f"{'-' * name_width}-+-{'-' * value_width}")
+    for name, value in rows:
+        table_lines.append(f"{name.ljust(name_width)} | {str(value).rjust(value_width)}")
+    table_lines.append(f"{'-' * name_width}-+-{'-' * value_width}")
+    table_lines.append(f"{'Total'.ljust(name_width)} | {str(total).rjust(value_width)}")
 
-    # Add the two side-by-side fields
-    embed.add_field(
-        name="Person",
-        value=f"```{names_column}```" if names_column else "No data",
-        inline=True
-    )
+    table_text = "```\n" + "\n".join(table_lines) + "\n```"
 
-    embed.add_field(
-        name="Items Sent",
-        value=f"```{values_column}```" if values_column else "No data",
-        inline=True
-    )
-
-    # Add a separator line and total
-    embed.add_field(
-        name="Total Sent",
-        value=f"```{'-' * max(name_width, 5)} | {'-' * max(value_width, 5)}\n{str(total).rjust(value_width)} total```",
-        inline=False
-    )
+    # Add a single field with the full table
+    embed.add_field(name="Daily Stats", value=table_text, inline=False)
 
     return embed
 
