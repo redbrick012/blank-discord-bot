@@ -1,11 +1,14 @@
 import os
 import gspread
 
-WATCH_SHEET = "logs"  # The tab you want to watch
+# -------------------------
+# Google Sheets Setup
+# -------------------------
+SHEET_ID = os.environ["SHEET_ID"]  # your spreadsheet ID
+WATCH_SHEET = "logs"               # tab to watch for new rows
 
 def get_client():
-    scope = ["https://spreadsheets.google.com/feeds",
-             "https://www.googleapis.com/auth/drive"]
+    """Authenticate with Google Sheets using a service account dict."""
     creds = {
         "type": "service_account",
         "project_id": os.environ["GS_PROJECT_ID"],
@@ -20,12 +23,34 @@ def get_client():
     }
     return gspread.service_account_from_dict(creds)
 
+# -------------------------
+# Fetch Sheet Data
+# -------------------------
 def get_sheet_values(sheet_id, tab_name):
+    """Return all values from a specific sheet/tab."""
     client = get_client()
     sheet = client.open_by_key(sheet_id).worksheet(tab_name)
     return sheet.get_all_values()
 
-def get_row_count(tab_name):
+def get_daily_stats(tab_name="Daily Stats", range_start="B4", range_end="C12"):
+    """
+    Fetch a range from the Daily Stats tab.
+    Returns a list of tuples: [(person, items_sent), ...]
+    """
     client = get_client()
-    sheet = client.open_by_key(os.environ["SHEET_ID"]).worksheet(tab_name)
+    sheet = client.open_by_key(SHEET_ID).worksheet(tab_name)
+    values = sheet.get(f"{range_start}:{range_end}")
+    
+    result = []
+    for row in values:
+        if len(row) >= 2 and row[0] != "":
+            person = row[0]
+            items_sent = row[1] if row[1] != "" else "0"
+            result.append((person, int(items_sent)))
+    return result
+
+def get_row_count(tab_name):
+    """Return number of rows in a given tab."""
+    client = get_client()
+    sheet = client.open_by_key(SHEET_ID).worksheet(tab_name)
     return len(sheet.get_all_values())
