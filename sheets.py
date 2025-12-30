@@ -6,6 +6,8 @@ from datetime import datetime
 SHEET_ID = os.environ.get("SHEET_ID")
 STATS_SHEET = "Daily Stats"
 LOGS_SHEET = "Logs"
+WATCH_SHEET = "logs"        # The sheet you want to monitor for new rows
+STATS_SHEET = "Daily Stats" # The sheet for the daily stats table
 
 # Google service account credentials
 GS_CREDS = {
