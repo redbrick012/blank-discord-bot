@@ -19,7 +19,7 @@ def get_daily_stats():
     gc = get_client()
     ws = gc.open_by_key(os.environ["SHEET_ID"]).worksheet("Daily Stats")
 
-    data = ws.get("B4:C12")
+    data = ws.get("B5:C11")
 
     rows = []
     total = 0
