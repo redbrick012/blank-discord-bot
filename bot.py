@@ -39,18 +39,23 @@ def build_daily_stats_embed(rows, total):
         color=discord.Color.dark_teal()
     )
 
+    # Build two columns as inline fields
+    names_column = "\n".join(name for name, _ in rows)
+    values_column = "\n".join(str(value) for _, value in rows)
+
     embed.add_field(
         name="Person",
-        value="\n".join(name for name, _ in rows),
+        value=names_column or "No data",
         inline=True
     )
 
     embed.add_field(
         name="Items Sent",
-        value="\n".join(str(value) for _, value in rows),
+        value=values_column or "No data",
         inline=True
     )
 
+    # Total as a separate full-width field
     embed.add_field(
         name="Total Sent",
         value=f"**{total}**",
