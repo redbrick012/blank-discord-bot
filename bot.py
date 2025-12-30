@@ -21,32 +21,31 @@ last_known_rows = 0
 
 # Embed builder for daily stats
 def build_daily_stats_embed(rows, total):
+    """
+    Builds a Discord embed showing daily stats in two side-by-side columns.
+    """
     embed = discord.Embed(
         title="📅 Daily Stats",
         color=discord.Color.dark_teal()
     )
+
     if not rows:
         embed.description = "No data available."
         return embed
 
-    # Side-by-side columns
-    people_col = ""
-    items_col = ""
-    for person, value in rows:
-        people_col += f"{person}\n"
-        items_col += f"{value}\n"
+    # Build table rows as a single string with columns aligned
+    table_lines = ["**Person** | **Items Sent**"]
+    table_lines.append("---|---")
 
-    embed.add_field(name="Person", value=people_col, inline=True)
-    embed.add_field(name="Items Sent", value=items_col, inline=True)
-    embed.add_field(name="Total Sent", value=f"**{total}**", inline=False)
+    for person, items_sent in rows:
+        table_lines.append(f"{person} | {items_sent}")
+
+    # Join all lines into a single string
+    table_content = "\n".join(table_lines)
+
+    embed.description = f"```{table_content}```\n**Total Sent:** {total}"
     return embed
 
-# Command for manual daily stats
-@bot.tree.command(name="dailystats", description="Show daily stats")
-async def dailystats(interaction: discord.Interaction):
-    rows, total = get_daily_stats()
-    embed = build_daily_stats_embed(rows, total)
-    await interaction.response.send_message(embed=embed)
 
 # Task: daily stats at 9AM
 @tasks.loop(time=dt_time(hour=9, minute=0))
