@@ -31,7 +31,7 @@ def get_sheet(sheet_name):
     sheet = client.open_by_key(SHEET_ID)
     return sheet.worksheet(sheet_name)
 
-def get_sheet_values(sheet_name, range_notation=None):
+def get_sheet_values(sheet_name, range_notation="B6:C11"):
     """
     Returns all values in a sheet (or optional range).
     Returns as list of lists of strings.
