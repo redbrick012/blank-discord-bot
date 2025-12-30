@@ -5,7 +5,7 @@
 import os
 import asyncio
 import discord
-from discord.ext import commands, tasks
+from discord.ext import tasks
 from sheets import get_daily_stats, get_row_count, get_sheet_values, DAILY_STATS_SHEET, LOGS_SHEET
 
 DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN")
@@ -14,7 +14,7 @@ STATS_CHANNEL_ID = int(os.environ.get("STATS_CHANNEL_ID"))
 intents = discord.Intents.default()
 intents.message_content = True
 
-bot = commands.Bot(command_prefix="!", intents=intents)
+bot = discord.Bot(intents=intents)  # discord.Bot supports slash commands
 
 last_known_log_rows = 0
 
@@ -32,12 +32,12 @@ def build_daily_stats_embed(rows, total):
     embed.add_field(name="Total Sent", value=f"**{total}**", inline=False)
     return embed
 
-# Slash command setup
-@bot.command(name="dailystats")
-async def dailystats(ctx):
+# Slash command
+@bot.slash_command(name="dailystats", description="Show today's daily stats")
+async def dailystats(ctx: discord.ApplicationContext):
     rows, total = get_daily_stats()
     embed = build_daily_stats_embed(rows, total)
-    await ctx.send(embed=embed)
+    await ctx.respond(embed=embed)
 
 # Background task: daily stats at 9am UTC
 @tasks.loop(minutes=1)
@@ -72,5 +72,3 @@ async def on_ready():
     last_known_log_rows = get_row_count(LOGS_SHEET)
     daily_stats_task.start()
     sheet_watch_task.start()
-
-bot.run(DISCORD_TOKEN)
