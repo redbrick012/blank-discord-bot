@@ -86,7 +86,7 @@ async def daily_stats_task():
     await channel.send(embed=embed)
 
 # --- Sheet watcher task ---
-@@tasks.loop(seconds=60)
+@tasks.loop(seconds=60)
 async def sheet_watch_task():
     global last_known_rows
 
