@@ -4,7 +4,7 @@ import gspread
 # -------------------------
 # Google Sheets Setup
 # -------------------------
-SHEET_ID = os.environ["1HKZ_4m-U-9r3Tqdzn98Ztul7XkifyU9Pn2t_ur8QW8I"]  # Spreadsheet ID
+SHEET_ID = os.environ["SHEET_ID"]  # Spreadsheet ID
 DAILY_STATS_TAB = "Daily Stats"
 WATCH_SHEET = "logs"
 
