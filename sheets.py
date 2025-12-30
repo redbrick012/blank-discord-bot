@@ -7,6 +7,7 @@ SCOPE = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 SHEET_ID = os.environ["SHEET_ID"]  # Spreadsheet ID
 DAILY_STATS_SHEET = "Daily Stats"
 WATCH_SHEET = "Logs"
+STATS_SHEET = "Daily Stats"
 
 # Initialize Google Sheets client
 def get_client():
