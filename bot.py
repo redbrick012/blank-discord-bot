@@ -33,7 +33,7 @@ last_known_rows = 0
 
 def build_daily_stats_embed(rows, total):
     embed = discord.Embed(
-        title="📅 Daily Stats",
+        title="📅 Daily Stats - {datetime.utcnow():%A, %d %B %Y}",
         color=discord.Color.dark_teal()
     )
 
