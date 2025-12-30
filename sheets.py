@@ -15,9 +15,6 @@ def get_client():
         "client_x509_cert_url": os.environ["GS_CLIENT_CERT_URL"],
     })
 
-# -------------------------
-# DAILY STATS
-# -------------------------
 def get_daily_stats():
     gc = get_client()
     ws = gc.open_by_key(os.environ["SHEET_ID"]).worksheet("Daily Stats")
@@ -40,9 +37,6 @@ def get_daily_stats():
 
     return rows, total
 
-# -------------------------
-# NEW ROW WATCHER
-# -------------------------
 def get_row_count(sheet_name: str) -> int:
     gc = get_client()
     ws = gc.open_by_key(os.environ["SHEET_ID"]).worksheet(sheet_name)
