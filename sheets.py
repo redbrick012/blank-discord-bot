@@ -1,6 +1,5 @@
 import os
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
 
 WATCH_SHEET = "logs"  # The tab you want to watch
 
