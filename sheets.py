@@ -4,7 +4,7 @@ from datetime import datetime
 
 # Spreadsheet and sheets
 SHEET_ID = os.environ.get("SHEET_ID")
-DAILY_STATS_SHEET = "Daily Stats"
+STATS_SHEET = "Daily Stats"
 LOGS_SHEET = "Logs"
 
 # Google service account credentials
@@ -54,7 +54,7 @@ def get_daily_stats():
         - total sent (int)
     Skips header row.
     """
-    values = get_sheet_values(DAILY_STATS_SHEET)
+    values = get_sheet_values(STATS_SHEET)
 
     result = []
     total = 0
