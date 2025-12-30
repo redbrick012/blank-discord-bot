@@ -119,3 +119,4 @@ async def before_sheet_watch():
 
 # -------------------------
 bot.run(os.environ["DISCORD_TOKEN"])
+bot.loop.create_task(sheet_watch_task())
