@@ -5,7 +5,8 @@
 import os
 import asyncio
 import discord
-from discord.ext import commands, tasks, datetime
+from discord.ext import commands, tasks
+import datetime
 from sheets import get_daily_stats, get_row_count, get_sheet_values
 
 DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
