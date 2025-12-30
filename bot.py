@@ -4,7 +4,7 @@
 
 import os
 import discord
-from discord.ext import tasks
+from discord.ext import tasks, commands
 from datetime import datetime, time
 import asyncio
 
@@ -16,14 +16,13 @@ STATS_CHANNEL_ID = int(os.environ["STATS_CHANNEL_ID"])
 
 # --- Discord Setup ---
 intents = discord.Intents.default()
-bot = discord.Bot(intents=intents)
+bot = commands.Bot(command_prefix="!", intents=intents)  # Use commands.Bot for discord.py
 
 # --- Track last known rows for logs sheet ---
 last_known_rows = 0
 
 # --- Embed builder ---
 def build_daily_stats_embed(rows, total):
-    """Builds a Discord embed showing daily stats side by side with date in title."""
     date_str = datetime.now().strftime("%A, %d %B %Y")
     embed = discord.Embed(
         title=f"📅 Daily Stats - {date_str}",
@@ -33,7 +32,6 @@ def build_daily_stats_embed(rows, total):
         embed.description = "No data available."
         return embed
 
-    # Build two columns
     people_column = "\n".join(str(name) for name, _ in rows)
     items_column = "\n".join(str(value) for _, value in rows)
 
@@ -42,8 +40,8 @@ def build_daily_stats_embed(rows, total):
     embed.add_field(name="Total Sent", value=f"**{total}**", inline=False)
     return embed
 
-# --- Slash command ---
-@bot.slash_command(name="dailystats", description="Show today's daily stats")
+# --- Slash command using @bot.tree.command() ---
+@bot.tree.command(name="dailystats", description="Show today's daily stats")
 async def dailystats(interaction: discord.Interaction):
     rows, total = get_daily_stats()
     embed = build_daily_stats_embed(rows, total)
@@ -68,6 +66,7 @@ async def sheet_watch_task():
     if current_rows > last_known_rows:
         channel = bot.get_channel(STATS_CHANNEL_ID)
         if channel:
+            # Optionally you can show cell values here
             await channel.send(
                 f"🆕 **New entry added to `{WATCH_SHEET}`**\n"
                 f"Rows: `{last_known_rows} → {current_rows}`"
@@ -84,6 +83,8 @@ async def on_ready():
     # Start background tasks
     daily_stats_task.start()
     sheet_watch_task.start()
+    # Sync slash commands
+    await bot.tree.sync()
 
 # --- Run bot ---
 bot.run(DISCORD_TOKEN)
