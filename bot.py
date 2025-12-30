@@ -10,7 +10,7 @@ import os
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-STATS_CHANNEL_ID = int(os.environ["STATS_CHANNEL_ID])
+STATS_CHANNEL_ID = int(os.environ["STATS_CHANNEL_ID"])
 WATCH_SHEET = "Logs"  # 👈 tab to monitor
 
 last_known_rows = 0
