@@ -54,7 +54,7 @@ async def dailystats(interaction: discord.Interaction):
 # -------------------------
 # Background Tasks
 # -------------------------
-@tasks.loop(time=None)
+@tasks.loop(time=datetime.time(hour=9, minute=0, second=0))
 async def daily_stats_task():
     try:
         rows = get_daily_stats()
