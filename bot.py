@@ -34,7 +34,6 @@ async def on_ready():
 # EMBED BUILDER
 # -------------------------
 def build_daily_stats_embed(rows, total):
-def build_daily_stats_embed(rows, total):
     embed = discord.Embed(
         title="📅 Daily Stats",
         color=discord.Color.dark_teal()
@@ -63,7 +62,6 @@ def build_daily_stats_embed(rows, total):
     embed.add_field(name="Daily Stats", value=table_text, inline=False)
 
     return embed
-
 # -------------------------
 # SLASH COMMAND
 # -------------------------
