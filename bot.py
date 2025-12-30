@@ -73,6 +73,34 @@ async def dailystats(interaction: discord.Interaction):
 
     await interaction.followup.send(embed=embed)
 
+@bot.tree.command(name="lastlog", description="Show the most recent log entry")
+async def lastlog(interaction: discord.Interaction):
+    values = get_sheet_values(WATCH_SHEET)
+
+    if not values or len(values) < 2:
+        await interaction.response.send_message(
+            "No log entries found.",
+            ephemeral=True
+        )
+        return
+
+    # Skip header row, take last real entry
+    last_row = values[-1]
+
+    embed = discord.Embed(
+        title="📝 Latest Log Entry",
+        color=discord.Color.orange()
+    )
+
+    for i, cell in enumerate(last_row, start=1):
+        embed.add_field(
+            name=f"Column {i}",
+            value=cell or "—",
+            inline=False
+        )
+
+    await interaction.response.send_message(embed=embed)
+
 
 # --- Daily stats task at 9 AM ---
 @tasks.loop(time=time(hour=9, minute=0, second=0))
