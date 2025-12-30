@@ -41,20 +41,40 @@ def get_sheet_values(sheet_name, start_row=6, end_row=None, start_col=2, end_col
 
 # Get daily stats rows and total
 def get_daily_stats():
-    rows_raw = get_sheet_values(DAILY_STATS_SHEET, start_row=2)  # skip header
-    rows = []
+    """
+    Returns a tuple (rows, total) for the 'Daily Stats' sheet.
+    - rows: list of tuples (person, items_sent)
+    - total: sum of items_sent
+    """
+    worksheet = gc.open_by_key(SHEET_ID).worksheet("Daily Stats")
+    # Adjust your range here if needed
+    data = worksheet.get("B4:C12")
+
+    if not data:
+        return [], 0  # No data
+
+    result = []
     total = 0
-    for row in rows_raw:
+
+    for row in data:
         if len(row) < 2:
+            continue  # skip incomplete rows
+        person, items_sent = row[0].strip(), row[1].strip()
+
+        # Skip empty rows or headers
+        if not person or items_sent.lower() == "items sent":
             continue
-        person = row[0].strip()
+
         try:
-            items_sent = int(row[1])
+            items_sent_int = int(items_sent)
         except ValueError:
-            continue
-        rows.append((person, items_sent))
-        total += items_sent
-    return rows, total
+            items_sent_int = 0  # fallback if not a number
+
+        result.append((person, items_sent_int))
+        total += items_sent_int
+
+    return result, total
+
 
 # Get the number of rows in a sheet
 def get_row_count(sheet_name):
