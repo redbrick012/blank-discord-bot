@@ -35,7 +35,7 @@ def build_daily_stats_embed(rows, total):
     lines.append("-" * 22)
     lines.append(f"**{'Total Sent':<10} {total:>10}**")
 
-    table = "```text\n" + "\n".join(lines) + "\n```"
+    table = "\n".join(lines)  # no code block
 
     embed = discord.Embed(
         title=f"📅 Daily Stats – {yesterday.strftime('%A, %d %B %Y')}",
@@ -49,6 +49,7 @@ def build_daily_stats_embed(rows, total):
     )
 
     return embed
+
 
 # --- Slash command using @bot.tree.command() ---
 @bot.tree.command(name="dailystats", description="Show today's daily stats")
