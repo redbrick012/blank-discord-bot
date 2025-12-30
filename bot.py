@@ -26,14 +26,14 @@ def build_daily_stats_embed(rows, total):
     yesterday = datetime.now() - timedelta(days=1)
 
     lines = []
-    lines.append(f"{'Person':<10} {'Items Sent':>10}")
+    lines.append(f"**{'Person':<10} {'Items Sent':>10}**")
     lines.append("-" * 22)
 
     for person, count in rows:
         lines.append(f"{person:<10} {count:>10}")
 
     lines.append("-" * 22)
-    lines.append(f"{'Total Sent':<10} {total:>10}")
+    lines.append(f"**{'Total Sent':<10} {total:>10}**")
 
     table = "```text\n" + "\n".join(lines) + "\n```"
 
