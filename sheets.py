@@ -42,7 +42,7 @@ def get_row_count(sheet_name):
 
 # Get the daily stats as a list of tuples and total
 def get_daily_stats():
-    rows = get_sheet_values(STATS_SHEET, "B4:C12")  # Adjust the range if needed
+    rows = get_sheet_values(STATS_SHEET, "B6:C11")  # Adjust the range if needed
     result = []
     total = 0
     for row in rows:
