@@ -89,7 +89,9 @@ async def daily_stats_task():
 @tasks.loop(seconds=60)
 async def sheet_watch_task():
     global last_known_rows
-
+    
+    print("🔍 sheet_watch_task tick (loop running)")
+   
     values = get_sheet_values(WATCH_SHEET)
     current_rows = len(values)
 
