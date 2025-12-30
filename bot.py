@@ -5,7 +5,7 @@
 import os
 import asyncio
 import discord
-from discord.ext import tasks
+from discord.ext import commands, tasks
 from sheets import get_daily_stats, get_row_count, get_sheet_values, DAILY_STATS_SHEET, LOGS_SHEET
 
 DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN")
@@ -14,7 +14,7 @@ STATS_CHANNEL_ID = int(os.environ.get("STATS_CHANNEL_ID"))
 intents = discord.Intents.default()
 intents.message_content = True
 
-bot = discord.Bot(intents=intents)
+bot = commands.Bot(command_prefix="!", intents=intents)
 
 last_known_log_rows = 0
 
@@ -24,8 +24,6 @@ def build_daily_stats_embed(rows, total):
         title="📅 Daily Stats",
         color=discord.Color.dark_teal()
     )
-
-    # Build table-like text
     table_text = ""
     for person, items in rows:
         table_text += f"**{person}** | {items}\n"
@@ -34,14 +32,14 @@ def build_daily_stats_embed(rows, total):
     embed.add_field(name="Total Sent", value=f"**{total}**", inline=False)
     return embed
 
-# Command to show daily stats
-@bot.slash_command(name="dailystats", description="Show today's stats")
+# Slash command setup
+@bot.command(name="dailystats")
 async def dailystats(ctx):
     rows, total = get_daily_stats()
     embed = build_daily_stats_embed(rows, total)
-    await ctx.respond(embed=embed)
+    await ctx.send(embed=embed)
 
-# Background task: send daily stats at 9am
+# Background task: daily stats at 9am UTC
 @tasks.loop(minutes=1)
 async def daily_stats_task():
     now = discord.utils.utcnow().astimezone()
@@ -52,7 +50,7 @@ async def daily_stats_task():
         if channel:
             await channel.send(embed=embed)
 
-# Background task: watch Logs tab for new rows
+# Background task: watch Logs tab
 @tasks.loop(seconds=60)
 async def sheet_watch_task():
     global last_known_log_rows
