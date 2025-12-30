@@ -1,8 +1,13 @@
-import gspread
 import os
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+
+WATCH_SHEET = "logs"  # The tab you want to watch
 
 def get_client():
-    return gspread.service_account_from_dict({
+    scope = ["https://spreadsheets.google.com/feeds",
+             "https://www.googleapis.com/auth/drive"]
+    creds = {
         "type": "service_account",
         "project_id": os.environ["GS_PROJECT_ID"],
         "private_key_id": os.environ["GS_PRIVATE_KEY_ID"],
@@ -12,32 +17,16 @@ def get_client():
         "auth_uri": "https://accounts.google.com/o/oauth2/auth",
         "token_uri": "https://oauth2.googleapis.com/token",
         "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-        "client_x509_cert_url": os.environ["GS_CLIENT_CERT_URL"],
-    })
+        "client_x509_cert_url": os.environ["GS_CLIENT_CERT_URL"]
+    }
+    return gspread.service_account_from_dict(creds)
 
-def get_daily_stats():
-    gc = get_client()
-    ws = gc.open_by_key(os.environ["SHEET_ID"]).worksheet("Daily Stats")
+def get_sheet_values(sheet_id, tab_name):
+    client = get_client()
+    sheet = client.open_by_key(sheet_id).worksheet(tab_name)
+    return sheet.get_all_values()
 
-    data = ws.get("B7:C11")
-
-    rows = []
-    total = 0
-
-    for row in data:
-        if len(row) < 2:
-            continue
-
-        name = row[0].strip()
-        value = int(row[1]) if row[1].isdigit() else 0
-
-        if name:
-            rows.append((name, value))
-            total += value
-
-    return rows, total
-
-def get_row_count(sheet_name: str) -> int:
-    gc = get_client()
-    ws = gc.open_by_key(os.environ["SHEET_ID"]).worksheet(sheet_name)
-    return len(ws.get_all_values())
+def get_row_count(tab_name):
+    client = get_client()
+    sheet = client.open_by_key(os.environ["SHEET_ID"]).worksheet(tab_name)
+    return len(sheet.get_all_values())
