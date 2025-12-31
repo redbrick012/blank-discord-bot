@@ -1,7 +1,4 @@
 
-#SPREADSHEET_ID = "1HKZ_4m-U-9r3Tqdzn98Ztul7XkifyU9Pn2t_ur8QW8I"
-#CHANNEL_ID = 1455146969579126951
-
 import os
 import discord
 from discord.ext import tasks, commands
