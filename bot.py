@@ -164,7 +164,7 @@ async def sheet_watch_task():
     if current_rows <= last_known_rows:
         return
 
-    channel = bot.get_channel(STATS_CHANNEL_ID)
+    channel = bot.get_channel(LOGS_CHANNEL_ID)
     if not channel:
         return
 
