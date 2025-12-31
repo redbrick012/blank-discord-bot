@@ -13,6 +13,7 @@ from sheets import get_daily_stats, get_row_count, get_sheet_values, WATCH_SHEET
 # --- Environment Variables ---
 DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
 STATS_CHANNEL_ID = int(os.environ["STATS_CHANNEL_ID"])
+LOGS_CHANNEL_ID = int(os.environ["LOGS_CHANNEL_ID"])
 
 # --- Discord Setup ---
 intents = discord.Intents.default()
