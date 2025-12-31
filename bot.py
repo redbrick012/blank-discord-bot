@@ -148,13 +148,19 @@ async def daily_stats_task():
 @tasks.loop(seconds=60)
 async def sheet_watch_task():
     global last_known_rows
-    
+
     print("🔍 sheet_watch_task tick (loop running)")
-   
+
     values = get_sheet_values(WATCH_SHEET)
+
+    # Need at least header + 1 row
+    if not values or len(values) < 2:
+        return
+
+    headers = values[0]
     current_rows = len(values)
 
-    # Nothing new
+    # Nothing new appended
     if current_rows <= last_known_rows:
         return
 
@@ -162,16 +168,28 @@ async def sheet_watch_task():
     if not channel:
         return
 
-    # Get ONLY newly appended rows
+    # Only rows appended since last check (skip header)
     new_rows = values[last_known_rows:current_rows]
 
     for row in new_rows:
-        formatted = " | ".join(cell if cell else "—" for cell in row)
+        # Skip completely empty rows
+        if not any(cell.strip() for cell in row if cell):
+            continue
 
-        await channel.send(
-            f"🆕 **New entry added to `{WATCH_SHEET}`**\n"
-            f"```text\n{formatted}\n```"
+        embed = discord.Embed(
+            title="🆕 New Log Entry Added",
+            color=discord.Color.orange(),
+            timestamp=datetime.utcnow()
         )
+
+        for header, cell in zip(headers, row):
+            embed.add_field(
+                name=header,
+                value=cell or "—",
+                inline=False
+            )
+
+        await channel.send(embed=embed)
 
     last_known_rows = current_rows
 # --- Events ---
