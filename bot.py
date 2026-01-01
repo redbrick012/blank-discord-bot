@@ -104,7 +104,7 @@ async def lastlog(interaction: discord.Interaction):
     )
 
     embed.set_author(
-        name="Latest Entry
+        name="Latest Entry",
         icon_url="https://cdn.iconscout.com/icon/free/png-512/free-bear-icon-svg-download-png-1320936.png"
     )
 
