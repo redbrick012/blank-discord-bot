@@ -143,22 +143,24 @@ async def daily_stats_task():
     await channel.send(embed=embed)
 
 # --- Sheet watcher task ---
-@tasks.loop(seconds=60)
+WATCH_COLUMNS = [0, 1, 2, 4, 5]  # A, B, C, E, F
+
+@tasks.loop(hours=1)
 async def sheet_watch_task():
     global last_known_rows
 
-    print("🔍 sheet_watch_task tick (loop running)")
+    print("🕐 Hourly sheet_watch_task tick")
 
     values = get_sheet_values(WATCH_SHEET)
 
-    # Need at least header + 1 row
+    # Need header + at least one row
     if not values or len(values) < 2:
         return
 
     headers = values[0]
     current_rows = len(values)
 
-    # Nothing new appended
+    # Nothing new
     if current_rows <= last_known_rows:
         return
 
@@ -166,30 +168,60 @@ async def sheet_watch_task():
     if not channel:
         return
 
-    # Only rows appended since last check (skip header)
+    # Rows added since last check
     new_rows = values[last_known_rows:current_rows]
 
+    # Build table
+    table_lines = []
+    table_lines.append("```")
+    
+    # Header row
+    header_row = " | ".join(
+        headers[col] if col < len(headers) else f"Col {col+1}"
+        for col in WATCH_COLUMNS
+    )
+    table_lines.append(header_row)
+    table_lines.append("─" * len(header_row))
+
+    entry_count = 0
+
     for row in new_rows:
-        # Skip completely empty rows
         if not any(cell.strip() for cell in row if cell):
             continue
 
-        embed = discord.Embed(
-            title="🆕 New Log Entry Added",
-            color=discord.Color.orange(),
-            timestamp=datetime.utcnow()
-        )
+        entry_count += 1
 
-        for header, cell in zip(headers, row):
-            embed.add_field(
-                name=header,
-                value=cell or "—",
-                inline=False
-            )
+        row_values = []
+        for col in WATCH_COLUMNS:
+            if col < len(row) and row[col]:
+                row_values.append(row[col])
+            else:
+                row_values.append("—")
 
-        await channel.send(embed=embed)
+        table_lines.append(" | ".join(row_values))
+
+    table_lines.append("```")
+
+    if entry_count == 0:
+        last_known_rows = current_rows
+        return
+
+    embed = discord.Embed(
+        title="🆕 New Log Entries (Last Hour)",
+        description="\n".join(table_lines),
+        color=discord.Color.orange(),
+        timestamp=datetime.utcnow()
+    )
+
+    embed.set_footer(
+        text=f"{entry_count} new entr{'y' if entry_count == 1 else 'ies'} added"
+    )
+
+    await channel.send(embed=embed)
 
     last_known_rows = current_rows
+
+
 # --- Events ---
 @bot.event
 async def on_ready():
