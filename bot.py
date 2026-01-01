@@ -6,6 +6,8 @@ from datetime import datetime, time, timedelta
 import asyncio
 
 from sheets import get_daily_stats, get_row_count, get_sheet_values, WATCH_SHEET, STATS_SHEET
+from stock_task import setup_stock_task
+setup_stock_task(bot, get_sheet_values, int(os.environ["STOCK_CHANNEL_ID"]))
 
 # --- Environment Variables ---
 DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
