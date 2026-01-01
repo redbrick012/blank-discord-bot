@@ -98,7 +98,8 @@ async def dailystats(interaction: discord.Interaction):
 async def lastlog(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
 
-    values = get_sheet_values(WATCH_SHEET)
+    # Fetch sheet values in a background thread to avoid blocking
+    values = await asyncio.to_thread(get_sheet_values, WATCH_SHEET)
 
     if not values or len(values) < 2:
         await interaction.followup.send(
@@ -110,53 +111,65 @@ async def lastlog(interaction: discord.Interaction):
     headers = values[0]
     data_rows = values[1:]
 
-    # Rows added since last hourly check
+    # Only check the last 100 rows for speed
+    recent_data = data_rows[-100:]
+
+    # Rows added since last known row
     start_index = max(0, last_known_rows - 1)
-    recent_rows = data_rows[start_index:]
+    new_rows = recent_data[start_index:]
 
     # Remove empty rows
-    recent_rows = [
-        row for row in recent_rows
+    new_rows = [
+        row for row in new_rows
         if any(cell.strip() for cell in row if cell)
     ]
 
-    # Fallback: last 10 rows if no new rows
-    if not recent_rows:
-        recent_rows = [
-            row for row in reversed(data_rows)
+    # Fallback: show last 10 non-empty rows
+    if not new_rows:
+        fallback_rows = [
+            row for row in reversed(recent_data)
             if any(cell.strip() for cell in row if cell)
         ][:10]
-        recent_rows.reverse()
+        fallback_rows.reverse()
 
-        description = "No new entries in the last hour — showing most recent logs."
-        title = "🕐 Log Entries (Last 10)"
-    else:
-        description = None
-        title = "🕐 Log Entries (Last Hour)"
+        if not fallback_rows:
+            await interaction.followup.send(
+                "No log entries found.",
+                ephemeral=True
+            )
+            return
 
-    # Send each row as its own embed
-    embeds = []
-    for row in recent_rows:
+        table = build_log_table(headers, fallback_rows)
+
         embed = discord.Embed(
-            title=title,
-            description=description,
-            color=discord.Color.orange(),
+            title="🕐 Last 10 Log Entries",
+            description="No new entries in the last hour — showing most recent logs.",
+            color=discord.Color.dark_orange(),
             timestamp=datetime.utcnow()
         )
-        
-        for col in WATCH_COLUMNS:
-            col_name = headers[col] if col < len(headers) else f"Col {col+1}"
-            col_value = row[col] if col < len(row) and row[col] else "—"
-            embed.add_field(name=col_name, value=col_value, inline=True)
+        embed.set_thumbnail(url=bot.user.display_avatar.url)
+        embed.add_field(name="Entries", value=table, inline=False)
 
-        embeds.append(embed)
+        await interaction.followup.send(embed=embed, ephemeral=True)
+        return
 
-    # Discord allows max 10 embeds per message
-    for i in range(0, len(embeds), 10):
-        await interaction.followup.send(
-            embeds=embeds[i:i+10],
-            ephemeral=false
-        )
+    # Otherwise, build table for new rows
+    table = build_log_table(headers, new_rows)
+
+    embed = discord.Embed(
+        title=f"🕐 Log Entries (Last Hour: {len(new_rows)} new)",
+        description=table,
+        color=discord.Color.orange(),
+        timestamp=datetime.utcnow()
+    )
+    embed.set_thumbnail(url=bot.user.display_avatar.url)
+    embed.add_field(
+        name="Entries",
+        value=f"{len(new_rows)} entr{'y' if len(new_rows) == 1 else 'ies'}",
+        inline=False
+    )
+
+    await interaction.followup.send(embed=embed, ephemeral=True)
 
 
 @bot.tree.command(name="debugsheet", description="Debug: show last 10 raw rows")
