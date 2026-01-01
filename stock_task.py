@@ -51,26 +51,29 @@ class StockManager:
 
         return headers, rows
 
-    def build_stock_table(self, headers, rows, stock_columns=[0,1,2,3,4,5]):
-        """Return a nicely aligned code-block table for Discord embed."""
-        table_rows = [[row[i] if i < len(row) and row[i] else "—" for i in stock_columns] for row in rows]
+   def build_stock_table(self, headers, rows, stock_columns=[0,1,2,3,4,5]):
+    """Return a nicely aligned code-block table for Discord embed."""
+    table_rows = [[row[i] if i < len(row) and row[i] else "—" for i in stock_columns] for row in rows]
 
-        # Column widths
-        col_widths = []
-        for i, col in enumerate(stock_columns):
-            max_width = len(headers[col]) if col < len(headers) else len(f"Col {col+1}")
-            for row in table_rows:
-                max_width = max(max_width, len(str(row[i])))
-            col_widths.append(max_width)
-
-        # Header + separator
-        header_line = " | ".join(
-            (headers[col] if col < len(headers) else f"Col {col+1}").ljust(col_widths[i])
-            for i, col in enumerate(stock_columns)
-        )
-        separator_line = "─" * len(header_line)
-
-        # Row lines
-        row_lines = []
+    # Column widths
+    col_widths = []
+    for i, col in enumerate(stock_columns):
+        max_width = len(headers[col]) if col < len(headers) else len(f"Col {col+1}")
         for row in table_rows:
-            line = " | ".join(str(row[i]).ljust(col_widths[i]) for i in range(_
+            max_width = max(max_width, len(str(row[i])))
+        col_widths.append(max_width)
+
+    # Header + separator
+    header_line = " | ".join(
+        (headers[col] if col < len(headers) else f"Col {col+1}").ljust(col_widths[i])
+        for i, col in enumerate(stock_columns)
+    )
+    separator_line = "─" * len(header_line)
+
+    # Row lines
+    row_lines = []
+    for row in table_rows:
+        line = " | ".join(str(row[i]).ljust(col_widths[i]) for i in range(len(stock_columns)))
+        row_lines.append(line)
+
+    return "```\n" + header_line + "\n" + separator_line + "\n" + "\n".join(row_lines) + "\n```"
