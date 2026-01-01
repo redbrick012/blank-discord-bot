@@ -120,12 +120,41 @@ async def lastlog(interaction: discord.Interaction):
         if any(cell.strip() for cell in row if cell)
     ]
 
-    if not recent_rows:
-        await interaction.followup.send(
-            "No new log entries in the last hour.",
-            ephemeral=True
+      if not recent_rows:
+        # Fallback: show last 10 non-empty rows
+        fallback_rows = [
+            row for row in reversed(data_rows)
+            if any(cell.strip() for cell in row if cell)
+        ][:10]
+
+        if not fallback_rows:
+            await interaction.followup.send(
+                "No log entries found.",
+                ephemeral=True
+            )
+            return
+
+        fallback_rows.reverse()  # restore chronological order
+        table = build_log_table(headers, fallback_rows)
+
+        embed = discord.Embed(
+            title="🕐 Log Entries (Last 10)",
+            description="No new entries in the last hour — showing most recent logs.",
+            color=discord.Color.dark_orange(),
+            timestamp=datetime.utcnow()
         )
+
+        embed.set_thumbnail(url=bot.user.display_avatar.url)
+
+        embed.add_field(
+            name="Last 10 Entries",
+            value=table,
+            inline=False
+        )
+
+        await interaction.followup.send(embed=embed, ephemeral=True)
         return
+
 
     table = build_log_table(headers, recent_rows)
 
