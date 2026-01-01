@@ -61,25 +61,41 @@ def build_daily_stats_embed(rows, total):
 
     return embed
 
+# --- Helper: build a perfectly aligned table ---
 def build_log_table(headers, rows):
-    lines = []
-    lines.append("```")
+    # Calculate max width per column
+    col_widths = []
+    for i, col in enumerate(WATCH_COLUMNS):
+        # Header width
+        header_text = headers[col] if col < len(headers) else f"Col {col+1}"
+        max_width = len(header_text)
+        # Cell widths
+        for row in rows:
+            if col < len(row) and row[col]:
+                max_width = max(max_width, len(row[col]))
+        col_widths.append(max_width)
 
-    header_row = " | ".join(
-        headers[col] if col < len(headers) else f"Col {col+1}"
-        for col in WATCH_COLUMNS
+    # Build header line
+    header_line = " | ".join(
+        (headers[col] if col < len(headers) else f"Col {col+1}").ljust(col_widths[i])
+        for i, col in enumerate(WATCH_COLUMNS)
     )
-    lines.append(header_row)
-    lines.append("─" * len(header_row))
 
+    # Separator
+    separator_line = "─" * len(header_line)
+
+    # Build row lines
+    row_lines = []
     for row in rows:
-        values = []
-        for col in WATCH_COLUMNS:
-            values.append(row[col] if col < len(row) and row[col] else "—")
-        lines.append(" | ".join(values))
+        line = " | ".join(
+            (row[col] if col < len(row) and row[col] else "—").ljust(col_widths[i])
+            for i, col in enumerate(WATCH_COLUMNS)
+        )
+        row_lines.append(line)
 
-    lines.append("```")
-    return "\n".join(lines)
+    table = "```\n" + header_line + "\n" + separator_line + "\n" + "\n".join(row_lines) + "\n```"
+    return table
+
 
 
 # --- Slash command using @bot.tree.command() ---
@@ -98,49 +114,34 @@ async def dailystats(interaction: discord.Interaction):
 async def lastlog(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
 
-    # Fetch sheet values in a background thread to avoid blocking
+    # Fetch sheet values without blocking
     values = await asyncio.to_thread(get_sheet_values, WATCH_SHEET)
 
     if not values or len(values) < 2:
-        await interaction.followup.send(
-            "No log entries found.",
-            ephemeral=True
-        )
+        await interaction.followup.send("No log entries found.", ephemeral=True)
         return
 
     headers = values[0]
     data_rows = values[1:]
 
-    # Only check the last 100 rows for speed
+    # Only last 100 rows for speed
     recent_data = data_rows[-100:]
 
     # Rows added since last known row
     start_index = max(0, last_known_rows - 1)
     new_rows = recent_data[start_index:]
+    new_rows = [r for r in new_rows if any(cell.strip() for cell in r if cell)]
 
-    # Remove empty rows
-    new_rows = [
-        row for row in new_rows
-        if any(cell.strip() for cell in row if cell)
-    ]
-
-    # Fallback: show last 10 non-empty rows
+    # Fallback: last 10 rows if no new
     if not new_rows:
-        fallback_rows = [
-            row for row in reversed(recent_data)
-            if any(cell.strip() for cell in row if cell)
-        ][:10]
+        fallback_rows = [r for r in reversed(recent_data) if any(cell.strip() for cell in r if cell)][:10]
         fallback_rows.reverse()
 
         if not fallback_rows:
-            await interaction.followup.send(
-                "No log entries found.",
-                ephemeral=True
-            )
+            await interaction.followup.send("No log entries found.", ephemeral=True)
             return
 
         table = build_log_table(headers, fallback_rows)
-
         embed = discord.Embed(
             title="🕐 Last 10 Log Entries",
             description="No new entries in the last hour — showing most recent logs.",
@@ -149,13 +150,11 @@ async def lastlog(interaction: discord.Interaction):
         )
         embed.set_thumbnail(url=bot.user.display_avatar.url)
         embed.add_field(name="Entries", value=table, inline=False)
-
         await interaction.followup.send(embed=embed, ephemeral=True)
         return
 
-    # Otherwise, build table for new rows
+    # New rows
     table = build_log_table(headers, new_rows)
-
     embed = discord.Embed(
         title=f"🕐 Log Entries (Last Hour: {len(new_rows)} new)",
         description=table,
@@ -163,14 +162,8 @@ async def lastlog(interaction: discord.Interaction):
         timestamp=datetime.utcnow()
     )
     embed.set_thumbnail(url=bot.user.display_avatar.url)
-    embed.add_field(
-        name="Entries",
-        value=f"{len(new_rows)} entr{'y' if len(new_rows) == 1 else 'ies'}",
-        inline=False
-    )
-
+    embed.add_field(name="Entries", value=f"{len(new_rows)} entr{'y' if len(new_rows) == 1 else 'ies'}", inline=False)
     await interaction.followup.send(embed=embed, ephemeral=True)
-
 
 @bot.tree.command(name="debugsheet", description="Debug: show last 10 raw rows")
 async def debugsheet(interaction: discord.Interaction):
@@ -205,14 +198,14 @@ async def daily_stats_task():
 # --- Sheet watcher task ---
 WATCH_COLUMNS = [0, 1, 2, 4, 5]  # A, B, C, E, F
 
-@tasks.loop(time=time(minute=0, second=0))  # Runs every hour at hh:00
+@tasks.loop(time=time(minute=0, second=0))
 async def sheet_watch_task():
-    """Check the watch sheet every hour on the hour and post new rows as a single embed."""
+    """Check the watch sheet every hour and post new rows in a tidy table."""
     global last_known_rows
 
     print(f"🕐 sheet_watch_task tick at {datetime.utcnow().strftime('%H:%M:%S')} UTC")
 
-    values = get_sheet_values(WATCH_SHEET)
+    values = await asyncio.to_thread(get_sheet_values, WATCH_SHEET)
     if not values or len(values) < 2:
         return
 
@@ -228,39 +221,19 @@ async def sheet_watch_task():
         print("Logs channel not found.")
         return
 
-    # Get new rows since last check
+    # New rows
     new_rows = values[last_known_rows:current_rows]
-
-    # Filter out empty rows
-    new_rows = [
-        row for row in new_rows
-        if any(cell.strip() for cell in row if cell)
-    ]
+    new_rows = [r for r in new_rows if any(cell.strip() for cell in r if cell)]
 
     if not new_rows:
         last_known_rows = current_rows
         return
 
-    # Build mini-table for embed description
-    lines = []
-    header_line = " | ".join(
-        headers[col] if col < len(headers) else f"Col {col+1}"
-        for col in WATCH_COLUMNS
-    )
-    lines.append(f"**{header_line}**")
-    lines.append("─" * len(header_line))
-
-    for row in new_rows:
-        row_line = []
-        for col in WATCH_COLUMNS:
-            row_line.append(row[col] if col < len(row) and row[col] else "—")
-        lines.append(" | ".join(row_line))
-
-    table_text = "```\n" + "\n".join(lines) + "\n```"
+    table = build_log_table(headers, new_rows)
 
     embed = discord.Embed(
         title=f"🆕 New Log Entries ({len(new_rows)} new)",
-        description=table_text,
+        description=table,
         color=discord.Color.orange(),
         timestamp=datetime.utcnow()
     )
@@ -269,7 +242,6 @@ async def sheet_watch_task():
 
     await channel.send(embed=embed)
 
-    # Update last known row count
     last_known_rows = current_rows
 
 
