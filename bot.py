@@ -6,8 +6,10 @@ from datetime import datetime, time, timedelta
 import asyncio
 
 from sheets import get_daily_stats, get_row_count, get_sheet_values, WATCH_SHEET, STATS_SHEET
-from stock_task import setup_stock_task
-setup_stock_task(bot, get_sheet_values, int(os.environ["STOCK_CHANNEL_ID"]))
+from stock_task import StockManager
+
+intents = discord.Intents.default()
+bot = commands.Bot(command_prefix="!", intents=intents)
 
 # --- Environment Variables ---
 DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
@@ -270,6 +272,21 @@ async def on_ready():
 
     if not sheet_watch_task.is_running():
         sheet_watch_task.start()
+
+    # Setup stock manager
+    stock_manager = StockManager(bot, get_sheet_values)
+
+    # Example: start two stock tasks
+    stock_manager.start_stock_task(
+        stock_sheet="inventory_Flowers",
+        priority_sheet="priority_Flowers",
+        channel_id=int(os.environ["STOCK_CHANNEL_ID"])
+    )
+    stock_manager.start_stock_task(
+        stock_sheet="inventory_Plushies",
+        priority_sheet="priority_Plushies",
+        channel_id=int(os.environ["PLUSH_CHANNEL_ID"])
+    )
 
     # Sync slash commands
     await bot.tree.sync()
