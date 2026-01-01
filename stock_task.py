@@ -51,29 +51,70 @@ class StockManager:
 
         return headers, rows
 
-   def build_stock_table(self, headers, rows, stock_columns=[0,1,2,3,4,5]):
-    """Return a nicely aligned code-block table for Discord embed."""
-    table_rows = [[row[i] if i < len(row) and row[i] else "—" for i in stock_columns] for row in rows]
+    def build_stock_table(self, headers, rows, stock_columns=[0,1,2,3,4,5]):
+        """Return a nicely aligned code-block table for Discord embed."""
+        table_rows = [[row[i] if i < len(row) and row[i] else "—" for i in stock_columns] for row in rows]
 
-    # Column widths
-    col_widths = []
-    for i, col in enumerate(stock_columns):
-        max_width = len(headers[col]) if col < len(headers) else len(f"Col {col+1}")
+        # Column widths
+        col_widths = []
+        for i, col in enumerate(stock_columns):
+            max_width = len(headers[col]) if col < len(headers) else len(f"Col {col+1}")
+            for row in table_rows:
+                max_width = max(max_width, len(str(row[i])))
+            col_widths.append(max_width)
+
+        # Header + separator
+        header_line = " | ".join(
+            (headers[col] if col < len(headers) else f"Col {col+1}").ljust(col_widths[i])
+            for i, col in enumerate(stock_columns)
+        )
+        separator_line = "─" * len(header_line)
+
+        # Row lines
+        row_lines = []
         for row in table_rows:
-            max_width = max(max_width, len(str(row[i])))
-        col_widths.append(max_width)
+            line = " | ".join(str(row[i]).ljust(col_widths[i]) for i in range(len(stock_columns)))
+            row_lines.append(line)
 
-    # Header + separator
-    header_line = " | ".join(
-        (headers[col] if col < len(headers) else f"Col {col+1}").ljust(col_widths[i])
-        for i, col in enumerate(stock_columns)
-    )
-    separator_line = "─" * len(header_line)
+        return "```\n" + header_line + "\n" + separator_line + "\n" + "\n".join(row_lines) + "\n```"
 
-    # Row lines
-    row_lines = []
-    for row in table_rows:
-        line = " | ".join(str(row[i]).ljust(col_widths[i]) for i in range(len(stock_columns)))
-        row_lines.append(line)
+    def start_stock_task(self, stock_sheet, priority_sheet, channel_id, stock_columns=[0,1,2,3,4,5]):
+        """Start a repeating stock embed updater in a specific channel."""
+        stock_message_id = None
 
-    return "```\n" + header_line + "\n" + separator_line + "\n" + "\n".join(row_lines) + "\n```"
+        @tasks.loop(minutes=15)
+        async def stock_check_task():
+            nonlocal stock_message_id
+            channel = self.bot.get_channel(channel_id)
+            if not channel:
+                print(f"Stock channel {channel_id} not found")
+                return
+
+            headers, rows = await self.fetch_inventory_sorted(stock_sheet, priority_sheet)
+            if not rows:
+                print("No inventory rows found")
+                return
+
+            table_text = self.build_stock_table(headers, rows, stock_columns)
+            embed = discord.Embed(
+                title=f"📦 {stock_sheet} Inventory Status",
+                description=table_text,
+                color=discord.Color.green(),
+                timestamp=datetime.utcnow()
+            )
+            embed.set_footer(text="Updated every 15 minutes")
+            embed.set_thumbnail(url=self.bot.user.display_avatar.url)
+
+            try:
+                if stock_message_id:
+                    msg = await channel.fetch_message(stock_message_id)
+                    await msg.edit(embed=embed)
+                else:
+                    msg = await channel.send(embed=embed)
+                    stock_message_id = msg.id
+            except NotFound:
+                msg = await channel.send(embed=embed)
+                stock_message_id = msg.id
+
+        stock_check_task.start()
+        self.tasks[channel_id] = stock_check_task
