@@ -51,6 +51,7 @@ def build_daily_stats_embed(rows, total):
         title=f"📅 Daily Stats – {yesterday.strftime('%A, %d %B %Y')}",
         color=discord.Color.green()
     )
+    embed.set_thumbnail(url=bot.user.display_avatar.url)
 
     embed.add_field(
         name="Daily Breakdown",
@@ -60,6 +61,27 @@ def build_daily_stats_embed(rows, total):
 
     return embed
 
+def build_log_table(headers, rows):
+    lines = []
+    lines.append("```")
+
+    header_row = " | ".join(
+        headers[col] if col < len(headers) else f"Col {col+1}"
+        for col in WATCH_COLUMNS
+    )
+    lines.append(header_row)
+    lines.append("─" * len(header_row))
+
+    for row in rows:
+        values = []
+        for col in WATCH_COLUMNS:
+            values.append(row[col] if col < len(row) and row[col] else "—")
+        lines.append(" | ".join(values))
+
+    lines.append("```")
+    return "\n".join(lines)
+
+
 # --- Slash command using @bot.tree.command() ---
 @bot.tree.command(name="dailystats", description="Show today's daily stats")
 async def dailystats(interaction: discord.Interaction):
@@ -68,52 +90,61 @@ async def dailystats(interaction: discord.Interaction):
 
     rows, total = get_daily_stats()
     embed = build_daily_stats_embed(rows, total)
-
+    embed.set_thumbnail(url=bot.user.display_avatar.url)
+    
     await interaction.followup.send(embed=embed)
 
-@bot.tree.command(name="lastlog", description="Show the most recent log entry")
+@bot.tree.command(name="lastlog", description="Show log entries from the last hour")
 async def lastlog(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+
     values = get_sheet_values(WATCH_SHEET)
 
     if not values or len(values) < 2:
-        await interaction.response.send_message(
+        await interaction.followup.send(
             "No log entries found.",
             ephemeral=True
         )
         return
 
     headers = values[0]
+    data_rows = values[1:]
 
-    # Find last non-empty row (from bottom up)
-    last_row = None
-    for row in reversed(values[1:]):  # skip header
-        if any(cell.strip() for cell in row if cell):
-            last_row = row
-            break
+    # Rows added since last hourly check
+    start_index = max(0, last_known_rows - 1)
+    recent_rows = data_rows[start_index:]
 
-    if not last_row:
-        await interaction.response.send_message(
-            "No log entries found.",
+    # Remove empty rows
+    recent_rows = [
+        row for row in recent_rows
+        if any(cell.strip() for cell in row if cell)
+    ]
+
+    if not recent_rows:
+        await interaction.followup.send(
+            "No new log entries in the last hour.",
             ephemeral=True
         )
         return
 
+    table = build_log_table(headers, recent_rows)
+
     embed = discord.Embed(
-        title="📝 Latest Log Entry",
-        color=discord.Color.orange()
+        title="🕐 Log Entries (Last Hour)",
+        color=discord.Color.orange(),
+        timestamp=datetime.utcnow()
     )
 
     embed.set_thumbnail(url=bot.user.display_avatar.url)
 
+    embed.add_field(
+        name=f"{len(recent_rows)} entr{'y' if len(recent_rows) == 1 else 'ies'}",
+        value=table,
+        inline=False
+    )
 
-    for header, cell in zip(headers, last_row):
-        embed.add_field(
-            name=header,
-            value=cell or "—",
-            inline=False
-        )
+    await interaction.followup.send(embed=embed, ephemeral=True)
 
-    await interaction.response.send_message(embed=embed)
 
 @bot.tree.command(name="debugsheet", description="Debug: show last 10 raw rows")
 async def debugsheet(interaction: discord.Interaction):
