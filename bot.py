@@ -147,12 +147,10 @@ async def lastlog(interaction: discord.Interaction):
     embeds = []
     for row in new_rows:
         embed = discord.Embed(
-            title="🕐 Log Entry",
             color=discord.Color.orange(),
             timestamp=datetime.utcnow()
         )
-        embed.set_thumbnail(url=bot.user.display_avatar.url)
-
+        
         for i, col in enumerate(WATCH_COLUMNS):
             col_name = headers[col] if col < len(headers) else f"Col {col+1}"
             col_value = row[col] if col < len(row) and row[col] else "—"
