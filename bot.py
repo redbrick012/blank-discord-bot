@@ -143,8 +143,7 @@ async def lastlog(interaction: discord.Interaction):
             color=discord.Color.orange(),
             timestamp=datetime.utcnow()
         )
-        embed.set_thumbnail(url=bot.user.display_avatar.url)
-
+        
         for col in WATCH_COLUMNS:
             col_name = headers[col] if col < len(headers) else f"Col {col+1}"
             col_value = row[col] if col < len(row) and row[col] else "—"
@@ -156,7 +155,7 @@ async def lastlog(interaction: discord.Interaction):
     for i in range(0, len(embeds), 10):
         await interaction.followup.send(
             embeds=embeds[i:i+10],
-            ephemeral=True
+            ephemeral=false
         )
 
 
@@ -193,15 +192,14 @@ async def daily_stats_task():
 # --- Sheet watcher task ---
 WATCH_COLUMNS = [0, 1, 2, 4, 5]  # A, B, C, E, F
 
-@tasks.loop(hours=1)
+@tasks.loop(time=time(minute=0, second=0))  # Runs every hour at hh:00
 async def sheet_watch_task():
+    """Check the watch sheet every hour on the hour and post new rows as a single embed."""
     global last_known_rows
 
-    print("🕐 Hourly sheet_watch_task tick")
+    print(f"🕐 sheet_watch_task tick at {datetime.utcnow().strftime('%H:%M:%S')} UTC")
 
     values = get_sheet_values(WATCH_SHEET)
-
-    # Need header + at least one row
     if not values or len(values) < 2:
         return
 
@@ -214,59 +212,51 @@ async def sheet_watch_task():
 
     channel = bot.get_channel(LOGS_CHANNEL_ID)
     if not channel:
+        print("Logs channel not found.")
         return
 
-    # Rows added since last check
+    # Get new rows since last check
     new_rows = values[last_known_rows:current_rows]
 
-    # Build table
-    table_lines = []
-    table_lines.append("```")
-    
-    # Header row
-    header_row = " | ".join(
-        headers[col] if col < len(headers) else f"Col {col+1}"
-        for col in WATCH_COLUMNS
-    )
-    table_lines.append(header_row)
-    table_lines.append("─" * len(header_row))
+    # Filter out empty rows
+    new_rows = [
+        row for row in new_rows
+        if any(cell.strip() for cell in row if cell)
+    ]
 
-    entry_count = 0
-
-    for row in new_rows:
-        if not any(cell.strip() for cell in row if cell):
-            continue
-
-        entry_count += 1
-
-        row_values = []
-        for col in WATCH_COLUMNS:
-            if col < len(row) and row[col]:
-                row_values.append(row[col])
-            else:
-                row_values.append("—")
-
-        table_lines.append(" | ".join(row_values))
-
-    table_lines.append("```")
-
-    if entry_count == 0:
+    if not new_rows:
         last_known_rows = current_rows
         return
 
+    # Build mini-table for embed description
+    lines = []
+    header_line = " | ".join(
+        headers[col] if col < len(headers) else f"Col {col+1}"
+        for col in WATCH_COLUMNS
+    )
+    lines.append(f"**{header_line}**")
+    lines.append("─" * len(header_line))
+
+    for row in new_rows:
+        row_line = []
+        for col in WATCH_COLUMNS:
+            row_line.append(row[col] if col < len(row) and row[col] else "—")
+        lines.append(" | ".join(row_line))
+
+    table_text = "```\n" + "\n".join(lines) + "\n```"
+
     embed = discord.Embed(
-        title="🆕 New Log Entries (Last Hour)",
-        description="\n".join(table_lines),
+        title=f"🆕 New Log Entries ({len(new_rows)} new)",
+        description=table_text,
         color=discord.Color.orange(),
         timestamp=datetime.utcnow()
     )
-
-    embed.set_footer(
-        text=f"{entry_count} new entr{'y' if entry_count == 1 else 'ies'} added"
-    )
+    embed.set_thumbnail(url=bot.user.display_avatar.url)
+    embed.set_footer(text=f"{len(new_rows)} entr{'y' if len(new_rows) == 1 else 'ies'} added")
 
     await channel.send(embed=embed)
 
+    # Update last known row count
     last_known_rows = current_rows
 
 
