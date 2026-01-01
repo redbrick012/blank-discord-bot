@@ -120,7 +120,7 @@ async def lastlog(interaction: discord.Interaction):
         if any(cell.strip() for cell in row if cell)
     ]
 
-      if not recent_rows:
+        if not recent_rows:
         # Fallback: show last 10 non-empty rows
         fallback_rows = [
             row for row in reversed(data_rows)
