@@ -163,7 +163,7 @@ async def lastlog(interaction: discord.Interaction):
     )
     embed.set_thumbnail(url=bot.user.display_avatar.url)
     embed.add_field(name="Entries", value=f"{len(new_rows)} entr{'y' if len(new_rows) == 1 else 'ies'}", inline=False)
-    await interaction.followup.send(embed=embed, ephemeral=True)
+    await interaction.followup.send(embed=embed, ephemeral=False)
 
 @bot.tree.command(name="debugsheet", description="Debug: show last 10 raw rows")
 async def debugsheet(interaction: discord.Interaction):
