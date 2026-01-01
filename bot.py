@@ -103,9 +103,8 @@ async def lastlog(interaction: discord.Interaction):
         color=discord.Color.orange()
     )
 
-    embed.thumbnail(
-        url="https://cdn.iconscout.com/icon/free/png-512/free-bear-icon-svg-download-png-1320936.png"
-    )
+    embed.set_thumbnail(url=bot.user.display_avatar.url)
+
 
     for header, cell in zip(headers, last_row):
         embed.add_field(
