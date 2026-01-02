@@ -254,7 +254,7 @@ async def daily_stats_task():
 # --- Sheet watcher task ---
 WATCH_COLUMNS = [0, 1, 2, 4, 5]  # A, B, C, E, F
 
-@tasks.loop(minutes=1)  # runs every 60 minutes
+@tasks.loop(minutes=60)  # runs every 60 minutes
 async def sheet_watch_task():
     """Check the watch sheet every hour and post new rows as running log messages."""
     global last_known_rows
