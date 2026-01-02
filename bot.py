@@ -227,7 +227,7 @@ async def loghour(interaction: discord.Interaction):
         item = row[4] if len(row) > 4 else "—"
         time_str = row[0] if len(row) > 0 else datetime.utcnow().strftime("%H:%M:%S")
 
-        log_lines.append(f"[{name}]: {method} - {qty} x {item} at {time_str}")
+        log_lines.append(f"[{name}]: Contributed {qty} x {item} at {time_str}")
 
     # Send in chunks to avoid Discord 2000-char limit
     chunk_size = 1900
