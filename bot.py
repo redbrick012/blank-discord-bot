@@ -241,15 +241,39 @@ async def loghour(interaction: discord.Interaction):
 
 
 # --- Daily stats task at 9 AM ---
+# Keep track of the last posted daily stats message
+daily_stats_message_id = None
+
 @tasks.loop(time=time(hour=9, minute=0, second=0))
 async def daily_stats_task():
+    global daily_stats_message_id
+
     channel = bot.get_channel(STATS_CHANNEL_ID)
     if not channel:
         print("Stats channel not found.")
         return
+
+    # Get the daily stats
     rows, total = get_daily_stats()
     embed = build_daily_stats_embed(rows, total)
-    await channel.send(embed=embed)
+
+    # If we have already posted a message, try to edit it
+    if daily_stats_message_id:
+        try:
+            message = await channel.fetch_message(daily_stats_message_id)
+            await message.edit(embed=embed)
+            return
+        except discord.NotFound:
+            # Message was deleted, we will send a new one below
+            daily_stats_message_id = None
+        except Exception as e:
+            print("Error fetching previous daily stats message:", e)
+            daily_stats_message_id = None
+
+    # Send a new message if no previous one exists
+    message = await channel.send(embed=embed)
+    daily_stats_message_id = message.id
+
 
 # --- Sheet watcher task ---
 WATCH_COLUMNS = [0, 1, 2, 4, 5]  # A, B, C, E, F
