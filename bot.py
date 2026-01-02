@@ -182,7 +182,7 @@ async def debugsheet(interaction: discord.Interaction):
         ephemeral=True
     )
 
-@bot.tree.command(name="loghour", description="Show running log for the last hour")
+@bot.tree.command(name="loghour", description="Show testing log for the last hour")
 async def loghour(interaction: discord.Interaction):
     await interaction.response.defer()  # make it ephemeral if needed
 
@@ -204,7 +204,7 @@ async def loghour(interaction: discord.Interaction):
             # Attempt to parse timestamp from column 0 (A)
             time_cell = row[0] if len(row) > 0 else None
             if time_cell:
-                row_time = datetime.strptime(time_cell, "%Y-%m-%d %H:%M:%S")  # adjust format to your sheet
+                row_time = datetime.strptime(time_cell, "%d/%m/%Y %H:%M:%S")  # adjust format to your sheet
             else:
                 row_time = datetime.utcnow()
 
