@@ -96,8 +96,6 @@ def build_log_table(headers, rows):
     table = "```\n" + header_line + "\n" + separator_line + "\n" + "\n".join(row_lines) + "\n```"
     return table
 
-
-
 # --- Slash command using @bot.tree.command() ---
 @bot.tree.command(name="dailystats", description="Show today's daily stats")
 async def dailystats(interaction: discord.Interaction):
@@ -256,9 +254,9 @@ async def daily_stats_task():
 # --- Sheet watcher task ---
 WATCH_COLUMNS = [0, 1, 2, 4, 5]  # A, B, C, E, F
 
-@tasks.loop(minutes=60)  # runs every 60 minutes
+@tasks.loop(minutes=1)  # runs every 60 minutes
 async def sheet_watch_task():
-    """Check the watch sheet every hour and post new rows as individual embeds."""
+    """Check the watch sheet every hour and post new rows as running log messages."""
     global last_known_rows
 
     print(f"🕐 sheet_watch_task tick at {datetime.utcnow().strftime('%H:%M:%S')} UTC")
@@ -288,27 +286,34 @@ async def sheet_watch_task():
         last_known_rows = current_rows
         return
 
-    # Build one embed per new row
-    embeds = []
+    # Build running log lines like: [Name]: Contributed [Qty] x [Item] at [Time]
+    log_lines = []
     for row in new_rows:
-        embed = discord.Embed(
-            title="🆕 New Log Entry",
-            color=discord.Color.orange(),
-            timestamp=datetime.utcnow()
-        )
-        embed.set_thumbnail(url=bot.user.display_avatar.url)
+        try:
+            name = row[7] if len(row) > 7 else "Unknown"
+            method = row[2] if len(row) > 2 else "—"
+            qty = row[5] if len(row) > 5 else "0"
+            item = row[4] if len(row) > 4 else "—"
+            time_str = row[0] if len(row) > 0 else datetime.utcnow().strftime("%H:%M:%S")
 
-        for i, col in enumerate(WATCH_COLUMNS):
-            col_name = headers[col] if col < len(headers) else f"Col {col+1}"
-            col_value = row[col] if col < len(row) and row[col] else "—"
-            embed.add_field(name=col_name, value=col_value, inline=True)
+            # You can include method if you want: e.g. "{method}"
+            log_lines.append(f"[{name}]: Contributed {qty} x {item} at {time_str}")
+        except Exception as e:
+            print("Error formatting row:", row, e)
 
-        embeds.append(embed)
+    # Send in chunks to avoid Discord 2000-char limit
+    chunk_size = 1900
+    current_chunk = ""
+    for line in log_lines:
+        if len(current_chunk) + len(line) + 1 > chunk_size:
+            await channel.send(f"```{current_chunk}```")
+            current_chunk = ""
+        current_chunk += line + "\n"
 
-    # Discord limit: max 10 embeds per message
-    for i in range(0, len(embeds), 10):
-        await channel.send(embeds=embeds[i:i+10])
+    if current_chunk:
+        await channel.send(f"```{current_chunk}```")
 
+    # Update last known rows
     last_known_rows = current_rows
 
 
