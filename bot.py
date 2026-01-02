@@ -182,6 +182,66 @@ async def debugsheet(interaction: discord.Interaction):
         ephemeral=True
     )
 
+@bot.tree.command(name="loghour", description="Show running log for the last hour")
+async def loghour(interaction: discord.Interaction):
+    await interaction.response.defer()  # make it ephemeral if needed
+
+    # Fetch all rows from the watch sheet
+    values = await asyncio.to_thread(get_sheet_values, WATCH_SHEET)
+    if not values or len(values) < 2:
+        await interaction.followup.send("No log entries found.")
+        return
+
+    headers = values[0]
+    data_rows = values[1:]
+
+    # Filter rows from the last hour
+    one_hour_ago = datetime.utcnow() - timedelta(hours=1)
+    recent_rows = []
+
+    for row in data_rows:
+        try:
+            # Attempt to parse timestamp from column 0 (A)
+            time_cell = row[5] if len(row) > 0 else None
+            if time_cell:
+                row_time = datetime.strptime(time_cell, "%Y-%m-%d %H:%M:%S")  # adjust format to your sheet
+            else:
+                row_time = datetime.utcnow()
+
+            if row_time >= one_hour_ago:
+                recent_rows.append(row)
+        except Exception:
+            # fallback: include row if timestamp invalid
+            recent_rows.append(row)
+
+    if not recent_rows:
+        await interaction.followup.send("No log entries in the last hour.")
+        return
+
+    # Build log lines
+    log_lines = []
+    for row in recent_rows:
+        name = row[6] if len(row) > 6 else "Unknown"
+        method = row[2] if len(row) > 2 else "—"
+        qty = row[5] if len(row) > 5 else "0"
+        item = row[2] if len(row) > 2 else "—"
+        time_str = row[0] if len(row) > 0 else datetime.utcnow().strftime("%H:%M:%S")
+
+        log_lines.append(f"[{name}]: {method} {qty} x {item} at {time_str}")
+
+    # Send in chunks to avoid Discord 2000-char limit
+    chunk_size = 1900
+    current_chunk = ""
+    for line in log_lines:
+        if len(current_chunk) + len(line) + 1 > chunk_size:
+            await interaction.followup.send(f"```{current_chunk}```")
+            current_chunk = ""
+        current_chunk += line + "\n"
+
+    if current_chunk:
+        await interaction.followup.send(f"```{current_chunk}```")
+
+
 # --- Daily stats task at 9 AM ---
 @tasks.loop(time=time(hour=9, minute=0, second=0))
 async def daily_stats_task():
