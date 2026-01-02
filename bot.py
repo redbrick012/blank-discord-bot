@@ -280,7 +280,7 @@ WATCH_COLUMNS = [0, 1, 2, 4, 5]  # A, B, C, E, F
 
 @tasks.loop(minutes=15)  # runs every 15 minutes
 async def sheet_watch_task():
-    """Check the watch sheet every hour and post new rows as running log messages."""
+    """Check the watch sheet every 15 minutes and post new rows as running log messages."""
     global last_known_rows
 
     print(f"🕐 sheet_watch_task tick at {datetime.utcnow().strftime('%H:%M:%S')} UTC")
@@ -322,6 +322,8 @@ async def sheet_watch_task():
 
             # You can include method if you want: e.g. "{method}"
             log_lines.append(f"[{name}]: Contributed {qty} x {item} at {time_str}")
+            log_lines.append("")  # 👈 blank line
+            
         except Exception as e:
             print("Error formatting row:", row, e)
 
