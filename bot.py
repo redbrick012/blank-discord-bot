@@ -221,13 +221,13 @@ async def loghour(interaction: discord.Interaction):
     # Build log lines
     log_lines = []
     for row in recent_rows:
-        name = row[6] if len(row) > 6 else "Unknown"
+        name = row[7] if len(row) > 7 else "Unknown"
         method = row[2] if len(row) > 2 else "—"
         qty = row[5] if len(row) > 5 else "0"
-        item = row[2] if len(row) > 2 else "—"
+        item = row[4] if len(row) > 4 else "—"
         time_str = row[0] if len(row) > 0 else datetime.utcnow().strftime("%H:%M:%S")
 
-        log_lines.append(f"[{name}]: {method} {qty} x {item} at {time_str}")
+        log_lines.append(f"[{name}]: {method} - {qty} x {item} at {time_str}")
 
     # Send in chunks to avoid Discord 2000-char limit
     chunk_size = 1900
