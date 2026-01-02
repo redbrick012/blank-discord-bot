@@ -202,7 +202,7 @@ async def loghour(interaction: discord.Interaction):
     for row in data_rows:
         try:
             # Attempt to parse timestamp from column 0 (A)
-            time_cell = row[5] if len(row) > 0 else None
+            time_cell = row[0] if len(row) > 0 else None
             if time_cell:
                 row_time = datetime.strptime(time_cell, "%Y-%m-%d %H:%M:%S")  # adjust format to your sheet
             else:
