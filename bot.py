@@ -36,12 +36,12 @@ def build_daily_stats_embed(rows, total):
     lines = []
     lines.append("```")
     lines.append(f"{bold_text('Person'):<15} | {bold_text('Items Sent'):>10}")
-    lines.append("═" * 28)
+    lines.append("═" * 26)
 
     for person, count in rows:
         lines.append(f"{person:<15} | {count:>10}")
 
-    lines.append("═" * 28)
+    lines.append("═" * 26)
     lines.append(f"💰 {bold_text('Total Sent'):<13} | {total:>10}")
     lines.append("```")
 
