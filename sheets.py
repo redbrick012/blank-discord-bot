@@ -57,8 +57,8 @@ def get_row_count(sheet_name):
 def get_daily_stats():
     ws = get_sheet(STATS_SHEET)
 
-    # You said your table is B6:C11
-    values = ws.get("B6:C11")
+    # Table is B6:C15
+    values = ws.get("B6:C15")
 
     rows = []
     total = 0
