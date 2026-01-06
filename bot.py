@@ -51,7 +51,7 @@ def build_daily_stats_embed(rows, total):
         title=f"📅 Daily Stats – {yesterday.strftime('%A, %d %B %Y')}",
         color=discord.Color.green()
     )
-    embed.set_thumbnail(url=bot.user.display_avatar.url)
+    #embed.set_thumbnail(url=bot.user.display_avatar.url)
 
     embed.add_field(
         name="Daily Breakdown",
