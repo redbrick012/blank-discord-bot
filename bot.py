@@ -104,7 +104,7 @@ async def dailystats(interaction: discord.Interaction):
 
     rows, total = get_daily_stats()
     embed = build_daily_stats_embed(rows, total)
-    embed.set_thumbnail(url=bot.user.display_avatar.url)
+    #embed.set_thumbnail(url=bot.user.display_avatar.url)
     
     await interaction.followup.send(embed=embed)
 
