@@ -58,7 +58,7 @@ def get_daily_stats():
     ws = get_sheet(STATS_SHEET)
 
     # Table is B6:C15
-    values = ws.get("B6:C14")
+    values = ws.get("B6:C17")
 
     rows = []
     total = 0
