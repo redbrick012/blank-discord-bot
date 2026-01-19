@@ -54,7 +54,7 @@ def build_daily_stats_embed(rows, total):
     #embed.set_thumbnail(url=bot.user.display_avatar.url)
 
     embed.add_field(
-        name="Daily Breakdown",
+        name="Daily Breakdown (updated daily at 0900 GMT)",
         value=table,
         inline=False
     )
