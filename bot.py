@@ -1,4 +1,5 @@
-
+import json
+from pathlib import Path
 import os
 import discord
 from discord.ext import tasks, commands
@@ -21,6 +22,22 @@ bot = commands.Bot(command_prefix="!", intents=intents)  # Use commands.Bot for 
 
 # --- Track last known rows for logs sheet ---
 last_known_rows = 0
+
+# --- Persistent daily stats state ---
+STATE_FILE = Path("daily_state.json")
+
+def load_state():
+    if STATE_FILE.exists():
+        try:
+            with STATE_FILE.open("r") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+def save_state(state):
+    with STATE_FILE.open("w") as f:
+        json.dump(state, f)
 
 # --- Embed builder ---
 def build_daily_stats_embed(rows, total):
@@ -245,7 +262,7 @@ async def loghour(interaction: discord.Interaction):
 
 # --- Daily stats task at 9 AM ---
 # Keep track of the last posted daily stats message
-daily_stats_message_id = None
+
 
 @tasks.loop(time=time(hour=9, minute=0, second=0))
 async def daily_stats_task():
@@ -261,21 +278,37 @@ async def daily_stats_task():
     embed = build_daily_stats_embed(rows, total)
 
     # If we have already posted a message, try to edit it
-    if daily_stats_message_id:
+    @tasks.loop(time=time(hour=9, minute=0, second=0))
+async def daily_stats_task():
+    channel = bot.get_channel(STATS_CHANNEL_ID)
+    if not channel:
+        print("Stats channel not found.")
+        return
+
+    rows, total = get_daily_stats()
+    embed = build_daily_stats_embed(rows, total)
+
+    state = load_state()
+    message_id = state.get("daily_stats_message_id")
+
+    # Try editing existing message
+    if message_id:
         try:
-            message = await channel.fetch_message(daily_stats_message_id)
+            message = await channel.fetch_message(message_id)
             await message.edit(embed=embed)
+            print("✅ Daily stats message updated")
             return
         except discord.NotFound:
-            # Message was deleted, we will send a new one below
-            daily_stats_message_id = None
+            print("⚠️ Previous daily stats message not found, creating new one")
         except Exception as e:
-            print("Error fetching previous daily stats message:", e)
-            daily_stats_message_id = None
+            print("⚠️ Error editing daily stats message:", e)
 
-    # Send a new message if no previous one exists
+    # Send new message if edit failed or no message exists
     message = await channel.send(embed=embed)
-    daily_stats_message_id = message.id
+    state["daily_stats_message_id"] = message.id
+    save_state(state)
+
+    print("✅ Daily stats message created and stored")
 
 
 # --- Sheet watcher task ---
