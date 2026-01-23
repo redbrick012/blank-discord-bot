@@ -8,9 +8,12 @@ import asyncio
 from sheets import get_daily_stats, get_row_count, get_sheet_values, WATCH_SHEET, STATS_SHEET
 
 # --- Environment Variables ---
-DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
-STATS_CHANNEL_ID = int(os.environ["STATS_CHANNEL_ID"])
-LOGS_CHANNEL_ID = int(os.environ["LOGS_CHANNEL_ID"])
+DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+STATS_CHANNEL_ID = int(os.getenv("STATS_CHANNEL_ID", 0))
+LOGS_CHANNEL_ID = int(os.getenv("LOGS_CHANNEL_ID", 0))
+
+if not DISCORD_TOKEN:
+    raise RuntimeError("DISCORD_TOKEN not set")
 
 # --- Discord Setup ---
 intents = discord.Intents.default()
