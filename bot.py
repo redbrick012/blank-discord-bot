@@ -278,7 +278,7 @@ async def daily_stats_task():
     embed = build_daily_stats_embed(rows, total)
 
     # If we have already posted a message, try to edit it
-    @tasks.loop(time=time(hour=9, minute=0, second=0))
+@tasks.loop(time=time(hour=9, minute=0, second=0))    
 async def daily_stats_task():
     channel = bot.get_channel(STATS_CHANNEL_ID)
     if not channel:
