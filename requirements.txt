@@ -1,5 +1,4 @@
-discord.py
+discord.py==2.6.1
+aiohttp
 gspread
-google-auth
-google-auth-oauthlib
-google-api-python-client
+oauth2client
