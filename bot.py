@@ -60,6 +60,18 @@ def build_log_table(headers, rows):
         row_lines.append(line)
     return "```\n" + header_line + "\n" + separator_line + "\n" + "\n".join(row_lines) + "\n```"
 
+def load_last_row():
+    try:
+        with open("last_row.txt", "r") as f:
+            return int(f.read().strip())
+    except:
+        return 0
+
+def save_last_row(value):
+    with open("last_row.txt", "w") as f:
+        f.write(str(value))
+
+
 # ---------- SLASH COMMANDS ----------
 @bot.tree.command(name="dailystats", description="Show today's daily stats")
 async def dailystats(interaction: discord.Interaction):
@@ -116,7 +128,6 @@ async def daily_stats_task():
     print("✅ Daily stats message created")
 
 #@tasks.loop(minutes=15)
-@tasks.loop(minutes=15)
 async def sheet_watch_task():
     global last_known_rows
 
