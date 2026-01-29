@@ -1,30 +1,31 @@
 import os
+import json
 import gspread
 from google.oauth2.service_account import Credentials
 
 # ---------- CONFIG ----------
-SHEET_ID = os.environ["SHEET_ID"]
-
+SHEET_ID = os.getenv("SHEET_ID")
 WATCH_SHEET = "Logs"          # EXACT tab name
 STATS_SHEET = "Daily Stats"   # EXACT tab name
 
+if not SHEET_ID:
+    raise RuntimeError("SHEET_ID not set")
+
 # ---------- AUTH ----------
 def get_client():
+    """Return a gspread client using a single JSON secret."""
+    creds_json = os.getenv("GOOGLE_CREDS_JSON")
+    if not creds_json:
+        raise RuntimeError("GOOGLE_CREDS_JSON not set")
+
+    # Parse the JSON string from GitHub secret
+    info = json.loads(creds_json)
+
     creds = Credentials.from_service_account_info(
-        {
-            "type": os.environ["GS_TYPE"],
-            "project_id": os.environ["GS_PROJECT_ID"],
-            "private_key_id": os.environ["GS_PRIVATE_KEY_ID"],
-            "private_key": os.environ["GS_PRIVATE_KEY"].replace("\\n", "\n"),
-            "client_email": os.environ["GS_CLIENT_EMAIL"],
-            "client_id": os.environ["GS_CLIENT_ID"],
-            "auth_uri": os.environ["GS_AUTH_URI"],
-            "token_uri": os.environ["GS_TOKEN_URI"],
-            "auth_provider_x509_cert_url": os.environ["GS_AUTH_PROVIDER_CERT_URL"],
-            "client_x509_cert_url": os.environ["GS_CLIENT_CERT_URL"],
-        },
-        scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"],
+        info,
+        scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"]
     )
+
     return gspread.authorize(creds)
 
 # ---------- CORE ----------
@@ -45,9 +46,7 @@ def get_sheet_values(sheet_name, cell_range=None):
     else:
         values = ws.get_all_values()
 
-    # 🔍 Debug visibility
     print(f"[Sheets] Read {len(values)} rows from '{sheet_name}'")
-
     return values
 
 def get_row_count(sheet_name):
@@ -57,7 +56,7 @@ def get_row_count(sheet_name):
 def get_daily_stats():
     ws = get_sheet(STATS_SHEET)
 
-    # Table is B6:C15
+    # Table is B6:C20
     values = ws.get("B6:C20")
 
     rows = []
