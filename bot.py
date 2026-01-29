@@ -118,4 +118,45 @@ async def daily_stats_task():
 @tasks.loop(minutes=15)
 async def sheet_watch_task():
     global last_known_rows
-    print(f"🕐 sheet_watch_task tick {datetime.utcnow().strftime('%H:%
+    print(f"🕐 sheet_watch_task tick {datetime.utcnow().strftime('%H:%M:%S')} UTC")
+    values = await asyncio.to_thread(get_sheet_values, WATCH_SHEET)
+    if not values or len(values) < 2: return
+    headers, data_rows = values[0], values[1:]
+    current_rows = len(values)
+    if current_rows <= last_known_rows: return
+    new_rows = data_rows[last_known_rows:current_rows]
+    new_rows = [row for row in new_rows if any(cell.strip() for cell in row if cell)]
+    if not new_rows:
+        last_known_rows = current_rows
+        return
+    channel = bot.get_channel(LOGS_CHANNEL_ID)
+    if not channel: return
+    # Build messages
+    chunk_size = 1900
+    current_chunk = ""
+    for row in new_rows:
+        name = row[7] if len(row) > 7 else "Unknown"
+        qty = row[5] if len(row) > 5 else "0"
+        item = row[4] if len(row) > 4 else "—"
+        time_str = row[0] if len(row) > 0 else datetime.utcnow().strftime("%H:%M:%S")
+        line = f"[{name}]: Contributed {qty} x {item} at {time_str}\n"
+        if len(current_chunk) + len(line) > chunk_size:
+            await channel.send(f"```{current_chunk}```")
+            current_chunk = ""
+        current_chunk += line
+    if current_chunk:
+        await channel.send(f"```{current_chunk}```")
+    last_known_rows = current_rows
+
+# ---------- EVENTS ----------
+@bot.event
+async def on_ready():
+    global last_known_rows
+    print(f"✅ Logged in as {bot.user}")
+    last_known_rows = get_row_count(WATCH_SHEET)
+    if not daily_stats_task.is_running(): daily_stats_task.start()
+    if not sheet_watch_task.is_running(): sheet_watch_task.start()
+    await bot.tree.sync()
+
+# ---------- RUN BOT ----------
+bot.run(DISCORD_TOKEN)
