@@ -115,7 +115,7 @@ async def daily_stats_task():
     save_last_daily_msg_id(msg.id)
     print("✅ Daily stats message created")
 
-@tasks.loop(minutes=15)
+#@tasks.loop(minutes=15)
 async def sheet_watch_task():
     global last_known_rows
     print(f"🕐 sheet_watch_task tick {datetime.utcnow().strftime('%H:%M:%S')} UTC")
