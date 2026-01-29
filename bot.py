@@ -116,46 +116,67 @@ async def daily_stats_task():
     print("✅ Daily stats message created")
 
 #@tasks.loop(minutes=15)
+@tasks.loop(minutes=15)
 async def sheet_watch_task():
     global last_known_rows
+
     print(f"🕐 sheet_watch_task tick {datetime.utcnow().strftime('%H:%M:%S')} UTC")
+
     values = await asyncio.to_thread(get_sheet_values, WATCH_SHEET)
-    if not values or len(values) < 2: return
-    headers, data_rows = values[0], values[1:]
-    current_rows = len(values)
-    if current_rows <= last_known_rows: return
-    new_rows = data_rows[last_known_rows:current_rows]
-    new_rows = [row for row in new_rows if any(cell.strip() for cell in row if cell)]
-    if not new_rows:
-        last_known_rows = current_rows
+    if not values or len(values) < 2:
         return
+
+    headers = values[0]
+    data_rows = values[1:]
+
+    current_rows = len(data_rows)
+
+    # Nothing new
+    if current_rows <= last_known_rows:
+        return
+
+    # Only rows we haven't processed yet
+    new_rows = data_rows[last_known_rows:current_rows]
+
     channel = bot.get_channel(LOGS_CHANNEL_ID)
-    if not channel: return
-    # Build messages
-    chunk_size = 1900
-    current_chunk = ""
+    if not channel:
+        print("❌ Logs channel not found")
+        return
+
     for row in new_rows:
-        name = row[7] if len(row) > 7 else "Unknown"
-        qty = row[5] if len(row) > 5 else "0"
-        item = row[4] if len(row) > 4 else "—"
-        time_str = row[0] if len(row) > 0 else datetime.utcnow().strftime("%H:%M:%S")
-        line = f"[{name}]: Contributed {qty} x {item} at {time_str}\n"
-        if len(current_chunk) + len(line) > chunk_size:
-            await channel.send(f"```{current_chunk}```")
-            current_chunk = ""
-        current_chunk += line
-    if current_chunk:
-        await channel.send(f"```{current_chunk}```")
+        # Skip empty rows
+        if not any(cell.strip() for cell in row if cell):
+            continue
+
+        embed = discord.Embed(
+            title="📄 New Log Entry",
+            color=discord.Color.orange(),
+            timestamp=datetime.utcnow()
+        )
+
+        for col in WATCH_COLUMNS:
+            col_name = headers[col] if col < len(headers) else f"Column {col+1}"
+            col_value = row[col] if col < len(row) and row[col] else "—"
+            embed.add_field(
+                name=col_name,
+                value=col_value,
+                inline=True
+            )
+
+        await channel.send(embed=embed)
+
+    # Update last processed row count
     last_known_rows = current_rows
+
 
 # ---------- EVENTS ----------
 @bot.event
 async def on_ready():
     global last_known_rows
     print(f"✅ Logged in as {bot.user}")
+
     last_known_rows = get_row_count(WATCH_SHEET)
-    if not daily_stats_task.is_running(): daily_stats_task.start()
-    if not sheet_watch_task.is_running(): sheet_watch_task.start()
+    sheet_watch_task.start()
     await bot.tree.sync()
 
 # ---------- RUN BOT ----------
