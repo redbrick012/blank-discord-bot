@@ -23,8 +23,21 @@ intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Track last rows for Logs
-last_known_rows = 0
+last_known_rows = load_last_row()
 WATCH_COLUMNS = [0, 1, 2, 4, 5]  # A,B,C,E,F
+
+LAST_ROW_FILE = "last_row.txt"
+
+def load_last_row():
+    try:
+        with open(LAST_ROW_FILE, "r") as f:
+            return int(f.read().strip())
+    except Exception:
+        return 0
+
+def save_last_row(value: int):
+    with open(LAST_ROW_FILE, "w") as f:
+        f.write(str(value))
 
 # ---------- EMBED BUILDERS ----------
 def bold_text(text):
@@ -127,7 +140,7 @@ async def daily_stats_task():
     save_last_daily_msg_id(msg.id)
     print("✅ Daily stats message created")
 
-#@tasks.loop(minutes=15)
+@tasks.loop(minutes=15)
 async def sheet_watch_task():
     global last_known_rows
 
@@ -140,14 +153,14 @@ async def sheet_watch_task():
     headers = values[0]
     data_rows = values[1:]
 
-    current_rows = len(data_rows)
+    current_row_count = len(data_rows)
 
-    # Nothing new
-    if current_rows <= last_known_rows:
+    # No new rows
+    if current_row_count <= last_known_rows:
         return
 
-    # Only rows we haven't processed yet
-    new_rows = data_rows[last_known_rows:current_rows]
+    # Only process rows we haven't seen yet
+    new_rows = data_rows[last_known_rows:current_row_count]
 
     channel = bot.get_channel(LOGS_CHANNEL_ID)
     if not channel:
@@ -155,7 +168,7 @@ async def sheet_watch_task():
         return
 
     for row in new_rows:
-        # Skip empty rows
+        # Skip blank rows
         if not any(cell.strip() for cell in row if cell):
             continue
 
@@ -166,29 +179,37 @@ async def sheet_watch_task():
         )
 
         for col in WATCH_COLUMNS:
-            col_name = headers[col] if col < len(headers) else f"Column {col+1}"
-            col_value = row[col] if col < len(row) and row[col] else "—"
+            name = headers[col] if col < len(headers) else f"Column {col+1}"
+            value = row[col] if col < len(row) and row[col] else "—"
+
             embed.add_field(
-                name=col_name,
-                value=col_value,
+                name=name,
+                value=value,
                 inline=True
             )
 
         await channel.send(embed=embed)
 
-    # Update last processed row count
-    last_known_rows = current_rows
+    # Persist state
+    last_known_rows = current_row_count
+    save_last_row(last_known_rows)
+
+    print(f"✅ Posted {len(new_rows)} new log entries (row {last_known_rows})")
 
 
 # ---------- EVENTS ----------
 @bot.event
 async def on_ready():
-    global last_known_rows
     print(f"✅ Logged in as {bot.user}")
 
-    last_known_rows = get_row_count(WATCH_SHEET)
-    sheet_watch_task.start()
+    if not sheet_watch_task.is_running():
+        sheet_watch_task.start()
+
+    if not daily_stats_task.is_running():
+        daily_stats_task.start()
+
     await bot.tree.sync()
+
 
 # ---------- RUN BOT ----------
 bot.run(DISCORD_TOKEN)
