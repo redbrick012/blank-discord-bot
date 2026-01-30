@@ -86,37 +86,22 @@ def build_log_embeds(rows):
 # =====================
 # BACKGROUND TASK
 # =====================
-@tasks.loop(minutes=1)
+@tasks.loop(minutes=15)
 async def sheet_watch_task():
-    channel = bot.get_channel(CHANNEL_ID)
-    if channel is None:
-        print("❌ Channel not found")
-        return
+    new_rows, current_last_row = get_new_log_rows()
 
-    # 1️⃣ Read last processed row from __STATE!A1
-    last_row = get_last_processed_row()
-
-    # 2️⃣ Fetch only rows AFTER that row
-    new_rows, current_last_row = get_new_log_rows(last_row)
-
-    # 3️⃣ Nothing new → do nothing
     if not new_rows:
         return
 
-    # 4️⃣ Build embeds safely
-    embeds = build_log_embeds(new_rows)
+    channel = bot.get_channel(LOGS_CHANNEL_ID)
+    if not channel:
+        return
 
-    # 5️⃣ Send embeds
-    for embed in embeds:
-        await channel.send(embed=embed)
+    embed = build_log_embed(new_rows)
+    await channel.send(embed=embed)
 
-    # 6️⃣ Update __STATUS!A1 ONLY after successful send
     save_last_processed_row(current_last_row)
-
-    print(
-        f"📤 Posted {len(new_rows)} new rows "
-        f"(rows {last_row + 1} → {current_last_row})"
-    )
+    print(f"✅ Posted {len(new_rows)} new rows")
 
 
 # =====================
