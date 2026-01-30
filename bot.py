@@ -33,7 +33,7 @@ def bold_text(text):
     return text.translate(str.maketrans(
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
         "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭"
-        "𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘷𝘄𝘅𝘆𝘇"
+        "𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝘅𝘆𝘇"
     ))
 
 def build_daily_stats_embed(rows, total):
@@ -62,6 +62,13 @@ def build_log_embed(rows):
         embed.add_field(name=f"{name} • {item}", value=f"QTY: {qty}\nTime: {timestamp}", inline=False)
     return embed
 
+# Split large log embeds to avoid Discord limit
+MAX_FIELDS_PER_EMBED = 10
+async def send_log_rows(channel, rows):
+    for i in range(0, len(rows), MAX_FIELDS_PER_EMBED):
+        embed = build_log_embed(rows[i:i+MAX_FIELDS_PER_EMBED])
+        await channel.send(embed=embed)
+
 # ---------- SLASH COMMANDS ----------
 @bot.tree.command(name="dailystats", description="Show today's daily stats")
 async def dailystats(interaction: discord.Interaction):
@@ -83,8 +90,7 @@ async def lastlog(interaction: discord.Interaction):
     if not new_rows:
         await interaction.followup.send("No log entries found.")
         return
-    embed = build_log_embed(new_rows)
-    await interaction.followup.send(embed=embed)
+    await send_log_rows(interaction.channel, new_rows)
 
 # ---------- TASKS ----------
 @tasks.loop(time=time(hour=9, minute=0, second=0))
@@ -126,11 +132,7 @@ async def sheet_watch_task():
     if not channel:
         return
 
-    # Group all new rows into a single embed
-    embed = build_log_embed(new_rows)
-    await channel.send(embed=embed)
-
-    # Save last processed row
+    await send_log_rows(channel, new_rows)
     save_last_logged_row(len(values))
     print(f"✅ Posted {len(new_rows)} new rows")
 
