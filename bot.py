@@ -139,79 +139,64 @@ async def daily_stats_task():
     msg = await channel.send(embed=embed)
     save_last_daily_msg_id(msg.id)
     print("✅ Daily stats message created")
-
 @tasks.loop(minutes=15)
 async def sheet_watch_task():
-    global last_known_rows
-
-    print(f"🕐 sheet_watch_task tick {datetime.utcnow().strftime('%H:%M:%S')} UTC")
+    print("🕐 Checking sheet for new rows")
 
     values = await asyncio.to_thread(get_sheet_values, WATCH_SHEET)
     if not values or len(values) < 2:
         return
 
+    headers = values[0]
     data_rows = values[1:]
-    current_rows = len(data_rows)
 
-    # Nothing new
-    if current_rows <= last_known_rows:
+    last_row = get_last_processed_row()
+    current_row = len(values)
+
+    # No new data
+    if current_row <= last_row:
+        print("✅ No new rows")
         return
 
-    new_rows = data_rows[last_known_rows:current_rows]
-    new_rows = [r for r in new_rows if any(c.strip() for c in r if c)]
+    new_rows = data_rows[last_row - 1 : current_row - 1]
+    new_rows = [r for r in new_rows if any(cell.strip() for cell in r if cell)]
 
     if not new_rows:
-        last_known_rows = current_rows
+        save_last_processed_row(current_row)
         return
 
     channel = bot.get_channel(LOGS_CHANNEL_ID)
     if not channel:
+        print("❌ Logs channel not found")
         return
 
-    # Build grouped log lines
-    log_lines = []
+    embeds = []
+
     for row in new_rows:
-        name = row[7] if len(row) > 7 else "Unknown"
-        qty = row[5] if len(row) > 5 else "0"
-        item = row[4] if len(row) > 4 else "—"
-        time_str = row[0] if len(row) > 0 else "Unknown time"
-
-        log_lines.append(
-            f"[{name}]: Contributed {qty} x {item} at {time_str}"
-        )
-
-    # Discord embed description limit ≈ 4096 chars
-    MAX_CHARS = 3800
-    chunks = []
-    current_chunk = ""
-
-    for line in log_lines:
-        if len(current_chunk) + len(line) + 1 > MAX_CHARS:
-            chunks.append(current_chunk)
-            current_chunk = ""
-        current_chunk += line + "\n"
-
-    if current_chunk:
-        chunks.append(current_chunk)
-
-    # Send embeds
-    for chunk in chunks:
         embed = discord.Embed(
-            title=f"📄 New Log Entries ({len(new_rows)})",
-            description=chunk,
-            color=discord.Color.orange(),
-            timestamp=datetime.utcnow()
+            title="📄 New Log Entry",
+            color=discord.Color.orange()
         )
-        await channel.send(embed=embed)
 
-    last_known_rows = current_rows
+        def cell(i, default="—"):
+            return row[i] if i < len(row) and row[i] else default
 
+        embed.add_field(name="Timestamp", value=cell(0), inline=False)
+        embed.add_field(name="Category", value=cell(1), inline=True)
+        embed.add_field(name="Method", value=cell(2), inline=True)
+        embed.add_field(name="Item", value=cell(4), inline=True)
+        embed.add_field(name="QTY", value=cell(5), inline=True)
+        embed.add_field(name="Person", value=cell(7), inline=True)
 
-    # Persist state
-    last_known_rows = current_row_count
-    save_last_row(last_known_rows)
+        embeds.append(embed)
 
-    print(f"✅ Posted {len(new_rows)} new log entries (row {last_known_rows})")
+    # Send in batches of 10 embeds
+    for i in range(0, len(embeds), 10):
+        await channel.send(embeds=embeds[i:i+10])
+
+    # ✅ IMPORTANT: persist new state
+    save_last_processed_row(current_row)
+    print(f"✅ Processed rows {last_row} → {current_row}")
 
 
 # ---------- EVENTS ----------
