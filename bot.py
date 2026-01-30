@@ -13,6 +13,7 @@ from sheets import (
 # =====================
 DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
 CHANNEL_ID = 1455538936683434024
+LOGS_CHANNEL_ID = int(os.getenv("LOGS_CHANNEL_ID", 0))
 
 # =====================
 # DISCORD SETUP
