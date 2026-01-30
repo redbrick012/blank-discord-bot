@@ -1,4 +1,6 @@
 discord.py>=2.3.2
+gspread
+google-auth
 google-api-python-client>=2.110.0
 google-auth>=2.25.0
 google-auth-oauthlib>=1.2.0
