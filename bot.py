@@ -34,7 +34,7 @@ async def on_ready():
 # =====================
 # EMBED BUILDER
 # =====================
-def build_log_embeded(rows):
+def build_log_embed(rows):
     """
     Builds one or more embeds, automatically splitting
     if Discord's 6000 character limit is approached.
