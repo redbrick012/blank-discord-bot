@@ -1,93 +1,73 @@
 import os
 import json
+import gspread
 from google.oauth2.service_account import Credentials
-from googleapiclient.discovery import build
 
-# =====================
-# ENVIRONMENT VARIABLES
-# =====================
+# ---------- ENV ----------
 SPREADSHEET_ID = os.environ["SPREADSHEET_ID"]
 WATCH_SHEET = os.environ["WATCH_SHEET"]
-SERVICE_ACCOUNT_JSON = os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"]
+STATS_SHEET = os.environ.get("STATS_SHEET", "Stats")
+SERVICE_JSON = os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"]
 
-# =====================
-# GOOGLE SHEETS CLIENT
-# =====================
-SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+# ---------- AUTH ----------
+creds_info = json.loads(SERVICE_JSON)
+scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+credentials = Credentials.from_service_account_info(creds_info, scopes=scopes)
+gc = gspread.authorize(credentials)
+sheet = gc.open_by_key(SPREADSHEET_ID)
 
-creds = Credentials.from_service_account_info(
-    json.loads(SERVICE_ACCOUNT_JSON),
-    scopes=SCOPES
-)
+# ---------- SHEET HELPERS ----------
+def get_sheet_values(sheet_name):
+    ws = sheet.worksheet(sheet_name)
+    return ws.get_all_values()
 
-service = build("sheets", "v4", credentials=creds)
-sheet = service.spreadsheets()
+def get_row_count(sheet_name):
+    ws = sheet.worksheet(sheet_name)
+    return len(ws.get_all_values())
 
+# ---------- DAILY STATS ----------
+def get_daily_stats():
+    ws = sheet.worksheet(STATS_SHEET)
+    rows = ws.get_all_values()[1:]  # skip header
 
-# =====================
-# LAST PROCESSED ROW
-# =====================
-LAST_ROW_CELL = f"{WATCH_SHEET}!Z1"
+    totals = {}
+    total_items = 0
 
+    for row in rows:
+        if len(row) < 6:
+            continue
+        person = row[1].strip()
+        try:
+            qty = int(row[5])
+        except ValueError:
+            continue
 
-def get_last_processed_row() -> int:
-    """
-    Reads the last processed row number from Z1.
-    Defaults to 1 (header row) if empty.
-    """
-    result = sheet.values().get(
-        spreadsheetId=SPREADSHEET_ID,
-        range=LAST_ROW_CELL
-    ).execute()
+        totals[person] = totals.get(person, 0) + qty
+        total_items += qty
 
-    values = result.get("values", [])
-    if not values or not values[0]:
-        return 1
+    sorted_rows = sorted(totals.items(), key=lambda x: x[1], reverse=True)
+    return sorted_rows, total_items
 
-    try:
-        return int(values[0][0])
-    except ValueError:
-        return 1
+# ---------- LAST DAILY MESSAGE ID ----------
+_LAST_MSG_CELL = "Z1"
 
+def get_last_daily_msg_id():
+    ws = sheet.worksheet(STATS_SHEET)
+    value = ws.acell(_LAST_MSG_CELL).value
+    return int(value) if value and value.isdigit() else None
 
-def set_last_processed_row(row_number: int):
-    """
-    Writes the last processed row number to Z1.
-    """
-    sheet.values().update(
-        spreadsheetId=SPREADSHEET_ID,
-        range=LAST_ROW_CELL,
-        valueInputOption="RAW",
-        body={"values": [[row_number]]}
-    ).execute()
+def save_last_daily_msg_id(msg_id):
+    ws = sheet.worksheet(STATS_SHEET)
+    ws.update(_LAST_MSG_CELL, str(msg_id))
 
+# ---------- LAST LOGGED ROW ----------
+_LAST_LOG_ROW_CELL = "AA1"
 
-# =====================
-# READ NEW ROWS
-# =====================
-def get_all_rows():
-    """
-    Returns all rows in the watch sheet.
-    """
-    result = sheet.values().get(
-        spreadsheetId=SPREADSHEET_ID,
-        range=WATCH_SHEET
-    ).execute()
+def get_last_logged_row():
+    ws = sheet.worksheet(WATCH_SHEET)
+    value = ws.acell(_LAST_LOG_ROW_CELL).value
+    return int(value) if value and value.isdigit() else 1  # start after header
 
-    return result.get("values", [])
-
-
-def get_new_rows():
-    """
-    Returns only rows that have not yet been processed.
-    """
-    all_rows = get_all_rows()
-    last_row = get_last_processed_row()
-
-    # Google Sheets rows are 1-indexed
-    # Skip header (row 1)
-    start_index = max(last_row, 1)
-
-    new_rows = all_rows[start_index:]
-
-    return new_rows, len(all_rows)
+def save_last_logged_row(row_number):
+    ws = sheet.worksheet(WATCH_SHEET)
+    ws.update(_LAST_LOG_ROW_CELL, str(row_number))
