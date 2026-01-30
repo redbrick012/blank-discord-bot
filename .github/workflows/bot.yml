@@ -14,6 +14,7 @@ jobs:
         SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
         STATS_CHANNEL_ID: ${{ secrets.STATS_CHANNEL_ID }}
         LOGS_CHANNEL_ID: ${{ secrets.LOGS_CHANNEL_ID }}
+        WATCH_SHEET: Logs
     steps:
       - uses: actions/checkout@v3
 
