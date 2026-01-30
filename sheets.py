@@ -61,7 +61,7 @@ def save_last_daily_msg_id(msg_id):
     ws.update(_LAST_MSG_CELL, str(msg_id))
 
 # ---------- LAST LOGGED ROW ----------
-_LAST_LOG_ROW_CELL = "AA1"
+_LAST_LOG_ROW_CELL = "A1"  # updated
 
 def get_last_logged_row():
     ws = sheet.worksheet(WATCH_SHEET)
