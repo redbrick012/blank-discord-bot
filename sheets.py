@@ -62,7 +62,7 @@ def get_last_daily_msg_id():
 
 def save_last_daily_msg_id(msg_id):
     ws = sheet.worksheet(STATS_SHEET)
-    ws.update(_LAST_MSG_CELL, str(msg_id))
+    ws.update(_LAST_MSG_CELL, [[msg_id]])  # wrap in list of lists)
 
 # ---------- LAST LOGGED ROW ----------
 _LAST_LOG_ROW_CELL = "A1"  # in __STATUS sheet
@@ -74,7 +74,7 @@ def get_last_processed_row():
 
 def set_last_processed_row(row_number):
     ws = sheet.worksheet(STATUS_SHEET)
-    ws.update(_LAST_LOG_ROW_CELL, str(row_number))
+    ws.update(_LAST_LOG_ROW_CELL, [[row_number]])  # <-- wrap in list of lists
 
 # ---------- GET NEW LOG ROWS ----------
 def get_new_log_rows(last_row):
