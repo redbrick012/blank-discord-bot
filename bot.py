@@ -1,111 +1,138 @@
+# bot.py
 import os
 import discord
-from discord.ext import commands, tasks
+from discord.ext import tasks, commands
+from datetime import datetime, time, timedelta
+import asyncio
 
 from sheets import (
+    get_daily_stats,
+    get_new_log_rows,
+    get_last_daily_msg_id,
+    save_last_daily_msg_id,
     get_last_processed_row,
-    save_last_processed_row,
-    get_new_log_rows
+    set_last_processed_row,
+    WATCH_SHEET,
+    STATS_SHEET
 )
 
-# =====================
-# ENVIRONMENT VARIABLES
-# =====================
-DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
-CHANNEL_ID = 1455538936683434024
+# ---------- ENV ----------
+DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+STATS_CHANNEL_ID = int(os.getenv("STATS_CHANNEL_ID", 0))
 LOGS_CHANNEL_ID = int(os.getenv("LOGS_CHANNEL_ID", 0))
 
-# =====================
-# DISCORD SETUP
-# =====================
+if not DISCORD_TOKEN:
+    raise RuntimeError("DISCORD_TOKEN not set")
+
+# ---------- DISCORD SETUP ----------
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+# ---------- EMBED HELPERS ----------
+def bold_text(text):
+    return text.translate(str.maketrans(
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
+        "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭"
+        "𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘷𝘄𝘅𝘆𝘇"
+    ))
 
-# =====================
-# EVENTS
-# =====================
-@bot.event
-async def on_ready():
-    print(f"✅ Logged in as {bot.user}")
-    sheet_watch_task.start()
+def build_daily_stats_embed(rows, total):
+    yesterday = datetime.utcnow() - timedelta(days=1)
+    lines = ["```", f"{bold_text('Person'):<15} | {bold_text('Items Sent'):>10}", "═" * 28]
+    for person, count in rows:
+        lines.append(f"{person:<15} | {count:>10}")
+    lines.append("═" * 28)
+    lines.append(f"💰 {bold_text('Total Sent'):<13} | {total:>10}")
+    lines.append("```")
 
+    embed = discord.Embed(
+        title=f"📅 Daily Stats – {yesterday.strftime('%A, %d %B %Y')}",
+        color=discord.Color.green()
+    )
+    embed.add_field(name="Daily Breakdown", value="\n".join(lines), inline=False)
+    return embed
 
-# =====================
-# EMBED BUILDER
-# =====================
 def build_log_embed(rows):
-    """
-    Builds one or more embeds, automatically splitting
-    if Discord's 6000 character limit is approached.
-    """
-    embeds = []
-    current_description = ""
-
+    embed = discord.Embed(title="📄 New Log Entries", color=discord.Color.orange(), timestamp=datetime.utcnow())
     for row in rows:
-        # Defensive check
-        if len(row) < 8:
-            continue
+        name = row[7] if len(row) > 7 else "Unknown"
+        qty = row[5] if len(row) > 5 else "0"
+        item = row[4] if len(row) > 4 else "—"
+        timestamp = row[0] if len(row) > 0 else datetime.utcnow().strftime("%d/%m/%Y %H:%M:%S")
+        embed.add_field(name=f"{name} • {item}", value=f"QTY: {qty}\nTime: {timestamp}", inline=False)
+    return embed
 
-        # Adjust indexes here if your sheet columns differ
-        timestamp = row[0]
-        category = row[1]
-        title = row[2]
-        item = row[4]
-        qty = row[5]
-        author = row[7]
+# ---------- SLASH COMMANDS ----------
+@bot.tree.command(name="dailystats", description="Show today's daily stats")
+async def dailystats(interaction: discord.Interaction):
+    await interaction.response.defer()
+    rows, total = get_daily_stats()
+    embed = build_daily_stats_embed(rows, total)
+    await interaction.followup.send(embed=embed)
 
-        line = (
-            f"**[{author}]** {title}\n"
-            f"• {item} ×{qty}\n"
-            f"• {timestamp}\n\n"
-        )
+@bot.tree.command(name="lastlog", description="Show recent log entries")
+async def lastlog(interaction: discord.Interaction):
+    await interaction.response.defer()
+    last_row = get_last_processed_row()
+    new_rows, current_last_row = get_new_log_rows(last_row)
+    if not new_rows:
+        await interaction.followup.send("No new log entries found.")
+        return
+    embed = build_log_embed(new_rows)
+    await interaction.followup.send(embed=embed)
 
-        # If adding this line would exceed Discord limits
-        if len(current_description) + len(line) > 5500:
-            embed = discord.Embed(
-                title="📦 New Log Entries",
-                description=current_description,
-                color=0x2ecc71
-            )
-            embeds.append(embed)
-            current_description = ""
+# ---------- TASKS ----------
+@tasks.loop(time=time(hour=9, minute=0, second=0))
+async def daily_stats_task():
+    channel = bot.get_channel(STATS_CHANNEL_ID)
+    if not channel:
+        print("Stats channel not found")
+        return
+    rows, total = get_daily_stats()
+    embed = build_daily_stats_embed(rows, total)
 
-        current_description += line
+    message_id = get_last_daily_msg_id()
+    try:
+        if message_id:
+            msg = await channel.fetch_message(message_id)
+            await msg.edit(embed=embed)
+            print("✅ Daily stats updated")
+            return
+    except discord.NotFound:
+        pass
+    msg = await channel.send(embed=embed)
+    save_last_daily_msg_id(msg.id)
+    print("✅ Daily stats message created")
 
-    if current_description:
-        embed = discord.Embed(
-            title="📦 New Log Entries",
-            description=current_description,
-            color=0x2ecc71
-        )
-        embeds.append(embed)
-
-    return embeds
-
-
-# =====================
-# BACKGROUND TASK
-# =====================
-@tasks.loop(minutes=15)
+@tasks.loop(minutes=1)
 async def sheet_watch_task():
-    new_rows, current_last_row = get_new_log_rows()
-
+    last_row = get_last_processed_row()
+    new_rows, current_last_row = get_new_log_rows(last_row)
     if not new_rows:
         return
 
     channel = bot.get_channel(LOGS_CHANNEL_ID)
     if not channel:
+        print("Logs channel not found")
         return
 
-    embed = build_log_embed(new_rows)
-    await channel.send(embed=embed)
+    # Split large embeds into chunks if needed
+    CHUNK_SIZE = 25
+    for i in range(0, len(new_rows), CHUNK_SIZE):
+        chunk = new_rows[i:i+CHUNK_SIZE]
+        embed = build_log_embed(chunk)
+        await channel.send(embed=embed)
 
-    save_last_processed_row(current_last_row)
-    print(f"✅ Posted {len(new_rows)} new rows")
+    set_last_processed_row(current_last_row)
+    print(f"✅ Posted {len(new_rows)} new log rows")
 
+# ---------- EVENTS ----------
+@bot.event
+async def on_ready():
+    print(f"✅ Logged in as {bot.user}")
+    if not daily_stats_task.is_running(): daily_stats_task.start()
+    if not sheet_watch_task.is_running(): sheet_watch_task.start()
+    await bot.tree.sync()
 
-# =====================
-# START BOT
-# =====================
+# ---------- RUN BOT ----------
 bot.run(DISCORD_TOKEN)
