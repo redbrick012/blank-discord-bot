@@ -8,7 +8,7 @@ from google.oauth2.service_account import Credentials
 SPREADSHEET_ID = os.environ["SPREADSHEET_ID"]
 WATCH_SHEET = os.environ.get("WATCH_SHEET", "Logs")
 STATS_SHEET = os.environ.get("STATS_SHEET", "Stats")
-STATUS_SHEET = os.environ.get("STATUS_SHEET", "__STATUS")
+STATUS_SHEET = os.environ.get("STATUS_SHEET", "__STATE")
 SERVICE_JSON = os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"]
 
 # ---------- AUTH ----------
