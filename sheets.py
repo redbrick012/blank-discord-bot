@@ -1,53 +1,96 @@
 import os
+import json
 import gspread
 from google.oauth2.service_account import Credentials
 
-SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
-
+# =====================
+# ENVIRONMENT VARIABLES
+# =====================
 SPREADSHEET_ID = os.environ["SPREADSHEET_ID"]
-LOG_SHEET_NAME = "Logs"
-STATUS_SHEET_NAME = "__STATE"
-STATUS_CELL = "A1"
+WATCH_SHEET = os.environ["WATCH_SHEET"]          # log sheet name
+STATS_SHEET = os.environ.get("STATS_SHEET", "Stats")
+STATUS_SHEET = "__STATE"                         # holds last processed row
+SERVICE_JSON = os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"]
 
+# =====================
+# GOOGLE AUTH
+# =====================
+creds_info = json.loads(SERVICE_JSON)
+scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+credentials = Credentials.from_service_account_info(creds_info, scopes=scopes)
 
-def get_client():
-    creds = Credentials.from_service_account_file(
-        "service_account.json",
-        scopes=SCOPES
-    )
-    return gspread.authorize(creds)
+gc = gspread.authorize(credentials)
+sheet = gc.open_by_key(SPREADSHEET_ID)
 
+# =====================
+# GENERIC HELPERS
+# =====================
+def get_sheet_values(sheet_name: str):
+    """Return all values from a sheet"""
+    ws = sheet.worksheet(sheet_name)
+    return ws.get_all_values()
 
-def get_last_processed_row():
-    client = get_client()
-    sheet = client.open_by_key(SPREADSHEET_ID)
-    status_ws = sheet.worksheet(STATUS_SHEET_NAME)
+def get_row_count(sheet_name: str) -> int:
+    ws = sheet.worksheet(sheet_name)
+    return len(ws.get_all_values())
 
-    value = status_ws.acell(STATUS_CELL).value
-    return int(value) if value and value.isdigit() else 1
+# =====================
+# DAILY STATS
+# =====================
+def get_daily_stats():
+    ws = sheet.worksheet(STATS_SHEET)
+    rows = ws.get_all_values()[1:]  # skip header
 
+    totals = {}
+    total_items = 0
 
-def set_last_processed_row(row_number: int):
-    client = get_client()
-    sheet = client.open_by_key(SPREADSHEET_ID)
-    status_ws = sheet.worksheet(STATUS_SHEET_NAME)
+    for row in rows:
+        if len(row) < 6:
+            continue
 
-    status_ws.update(STATUS_CELL, str(row_number))
+        person = row[1].strip()
+        try:
+            qty = int(row[5])
+        except (ValueError, TypeError):
+            continue
 
+        totals[person] = totals.get(person, 0) + qty
+        total_items += qty
 
-def get_new_log_rows(last_row: int):
-    client = get_client()
-    sheet = client.open_by_key(SPREADSHEET_ID)
-    log_ws = sheet.worksheet(LOG_SHEET_NAME)
+    sorted_rows = sorted(totals.items(), key=lambda x: x[1], reverse=True)
+    return sorted_rows, total_items
 
-    current_last_row = len(log_ws.get_all_values())
+# =====================
+# DAILY MESSAGE TRACKING
+# =====================
+_LAST_DAILY_MSG_CELL = "B1"
 
-    if current_last_row <= last_row:
-        return [], current_last_row
+def get_last_daily_msg_id():
+    ws = sheet.worksheet(STATUS_SHEET)
+    value = ws.acell(_LAST_DAILY_MSG_CELL).value
+    return int(value) if value and value.isdigit() else None
 
-    # Fetch ONLY new rows (1-based indexing)
-    start = last_row + 1
-    end = current_last_row
+def save_last_daily_msg_id(message_id: int):
+    ws = sheet.worksheet(STATUS_SHEET)
+    ws.update(_LAST_DAILY_MSG_CELL, str(message_id))
 
-    rows = log_ws.get(f"A{start}:Z{end}")
-    return rows, current_last_row
+# =====================
+# LOG WATCH TRACKING
+# =====================
+_LAST_LOG_ROW_CELL = "A1"
+
+def get_last_processed_row() -> int:
+    """
+    Reads __STATUS!A1
+    This is the LAST LOG ROW ALREADY POSTED
+    """
+    ws = sheet.worksheet(STATUS_SHEET)
+    value = ws.acell(_LAST_LOG_ROW_CELL).value
+    return int(value) if value and value.isdigit() else 1  # start after header
+
+def save_last_processed_row(row_number: int):
+    """
+    Saves the NEW last processed log row
+    """
+    ws = sheet.worksheet(STATUS_SHEET)
+    ws.update(_LAST_LOG_ROW_CELL, str(row_number))
