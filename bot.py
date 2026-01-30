@@ -4,7 +4,7 @@ from discord.ext import commands, tasks
 
 from sheets import (
     get_last_processed_row,
-    set_last_processed_row,
+    save_last_processed_row,
     get_new_log_rows
 )
 
@@ -111,7 +111,7 @@ async def sheet_watch_task():
         await channel.send(embed=embed)
 
     # 6️⃣ Update __STATUS!A1 ONLY after successful send
-    set_last_processed_row(current_last_row)
+    save_last_processed_row(current_last_row)
 
     print(
         f"📤 Posted {len(new_rows)} new rows "
