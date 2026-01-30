@@ -1,102 +1,93 @@
 import os
 import json
-import gspread
 from google.oauth2.service_account import Credentials
+from googleapiclient.discovery import build
 
 # =====================
-# ENV
+# ENVIRONMENT VARIABLES
 # =====================
-SPREADSHEET_ID = os.getenv("SPREADSHEET_ID")
-if not SPREADSHEET_ID:
-    raise RuntimeError("SPREADSHEET_ID not set")
+SPREADSHEET_ID = os.environ["SPREADSHEET_ID"]
+WATCH_SHEET = os.environ["WATCH_SHEET"]
+SERVICE_ACCOUNT_JSON = os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"]
 
-SERVICE_ACCOUNT_INFO = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
-
-# Sheet names
-WATCH_SHEET = "Watch"
-STATS_SHEET = "Stats"
-
-# State cell (stores last processed row)
-STATE_CELL = "Z1"
-
+# =====================
+# GOOGLE SHEETS CLIENT
+# =====================
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
-# =====================
-# CLIENT
-# =====================
 creds = Credentials.from_service_account_info(
-    SERVICE_ACCOUNT_INFO,
+    json.loads(SERVICE_ACCOUNT_JSON),
     scopes=SCOPES
 )
-client = gspread.authorize(creds)
+
+service = build("sheets", "v4", credentials=creds)
+sheet = service.spreadsheets()
+
 
 # =====================
-# HELPERS
+# LAST PROCESSED ROW
 # =====================
-def get_sheet(sheet_name):
-    return client.open_by_key(SPREADSHEET_ID).worksheet(sheet_name)
+LAST_ROW_CELL = f"{WATCH_SHEET}!Z1"
 
-def get_sheet_values(sheet_name):
-    return get_sheet(sheet_name).get_all_values()
 
-def get_row_count(sheet_name):
-    values = get_sheet_values(sheet_name)
-    return len(values)
-
-# =====================
-# DAILY STATS
-# =====================
-def get_daily_stats():
+def get_last_processed_row() -> int:
     """
-    Expects STATS_SHEET with:
-    A = Name
-    B = Count
+    Reads the last processed row number from Z1.
+    Defaults to 1 (header row) if empty.
     """
-    ws = get_sheet(STATS_SHEET)
-    rows = ws.get_all_values()[1:]  # skip header
+    result = sheet.values().get(
+        spreadsheetId=SPREADSHEET_ID,
+        range=LAST_ROW_CELL
+    ).execute()
 
-    data = []
-    total = 0
+    values = result.get("values", [])
+    if not values or not values[0]:
+        return 1
 
-    for row in rows:
-        if len(row) < 2:
-            continue
-        name = row[0]
-        try:
-            count = int(row[1])
-        except ValueError:
-            continue
-        data.append((name, count))
-        total += count
-
-    return data, total
-
-# =====================
-# LAST ROW STATE (Sheet-based)
-# =====================
-def get_last_processed_row():
-    ws = get_sheet(WATCH_SHEET)
-    value = ws.acell(STATE_CELL).value
     try:
-        return int(value)
-    except (TypeError, ValueError):
-        return 1  # default = header only
+        return int(values[0][0])
+    except ValueError:
+        return 1
 
-def save_last_processed_row(row_number: int):
-    ws = get_sheet(WATCH_SHEET)
-    ws.update(STATE_CELL, [[str(row_number)]])
+
+def set_last_processed_row(row_number: int):
+    """
+    Writes the last processed row number to Z1.
+    """
+    sheet.values().update(
+        spreadsheetId=SPREADSHEET_ID,
+        range=LAST_ROW_CELL,
+        valueInputOption="RAW",
+        body={"values": [[row_number]]}
+    ).execute()
+
 
 # =====================
-# DAILY MESSAGE ID (OPTIONAL)
+# READ NEW ROWS
 # =====================
-def get_last_daily_msg_id():
-    ws = get_sheet(STATS_SHEET)
-    val = ws.acell("Z1").value
-    try:
-        return int(val)
-    except (TypeError, ValueError):
-        return None
+def get_all_rows():
+    """
+    Returns all rows in the watch sheet.
+    """
+    result = sheet.values().get(
+        spreadsheetId=SPREADSHEET_ID,
+        range=WATCH_SHEET
+    ).execute()
 
-def save_last_daily_msg_id(message_id: int):
-    ws = get_sheet(STATS_SHEET)
-    ws.update("Z1", [[str(message_id)]])
+    return result.get("values", [])
+
+
+def get_new_rows():
+    """
+    Returns only rows that have not yet been processed.
+    """
+    all_rows = get_all_rows()
+    last_row = get_last_processed_row()
+
+    # Google Sheets rows are 1-indexed
+    # Skip header (row 1)
+    start_index = max(last_row, 1)
+
+    new_rows = all_rows[start_index:]
+
+    return new_rows, len(all_rows)
