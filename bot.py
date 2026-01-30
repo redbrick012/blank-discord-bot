@@ -12,7 +12,7 @@ from sheets import (
 # ENVIRONMENT VARIABLES
 # =====================
 DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
-CHANNEL_ID = int(os.environ["INVENTORY_CHANNEL_ID"])
+CHANNEL_ID = 1455538936683434024
 
 # =====================
 # DISCORD SETUP
