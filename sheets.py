@@ -49,7 +49,7 @@ def get_daily_stats():
     return sorted_rows, total_items
 
 # ---------- LAST DAILY MESSAGE ID ----------
-_LAST_MSG_CELL = "Z1"
+_LAST_MSG_CELL = "A1"
 
 def get_last_daily_msg_id():
     ws = sheet.worksheet(STATS_SHEET)
