@@ -153,6 +153,7 @@ async def sheet_watch_task():
     data_rows = values[1:]
     current_rows = len(data_rows)
 
+    # Nothing new
     if current_rows <= last_known_rows:
         return
 
@@ -167,23 +168,44 @@ async def sheet_watch_task():
     if not channel:
         return
 
+    # Build grouped log lines
+    log_lines = []
     for row in new_rows:
         name = row[7] if len(row) > 7 else "Unknown"
         qty = row[5] if len(row) > 5 else "0"
         item = row[4] if len(row) > 4 else "—"
         time_str = row[0] if len(row) > 0 else "Unknown time"
 
-        embed = discord.Embed(
-            title="📄 New Log Entry",
-            description=f"**[{name}]**: Contributed **{qty} x {item}**",
-            color=discord.Color.orange()
+        log_lines.append(
+            f"[{name}]: Contributed {qty} x {item} at {time_str}"
         )
 
-        embed.set_footer(text=time_str)
+    # Discord embed description limit ≈ 4096 chars
+    MAX_CHARS = 3800
+    chunks = []
+    current_chunk = ""
 
+    for line in log_lines:
+        if len(current_chunk) + len(line) + 1 > MAX_CHARS:
+            chunks.append(current_chunk)
+            current_chunk = ""
+        current_chunk += line + "\n"
+
+    if current_chunk:
+        chunks.append(current_chunk)
+
+    # Send embeds
+    for chunk in chunks:
+        embed = discord.Embed(
+            title=f"📄 New Log Entries ({len(new_rows)})",
+            description=chunk,
+            color=discord.Color.orange(),
+            timestamp=datetime.utcnow()
+        )
         await channel.send(embed=embed)
 
     last_known_rows = current_rows
+
 
     # Persist state
     last_known_rows = current_row_count
