@@ -150,45 +150,40 @@ async def sheet_watch_task():
     if not values or len(values) < 2:
         return
 
-    headers = values[0]
     data_rows = values[1:]
+    current_rows = len(data_rows)
 
-    current_row_count = len(data_rows)
-
-    # No new rows
-    if current_row_count <= last_known_rows:
+    if current_rows <= last_known_rows:
         return
 
-    # Only process rows we haven't seen yet
-    new_rows = data_rows[last_known_rows:current_row_count]
+    new_rows = data_rows[last_known_rows:current_rows]
+    new_rows = [r for r in new_rows if any(c.strip() for c in r if c)]
+
+    if not new_rows:
+        last_known_rows = current_rows
+        return
 
     channel = bot.get_channel(LOGS_CHANNEL_ID)
     if not channel:
-        print("❌ Logs channel not found")
         return
 
     for row in new_rows:
-        # Skip blank rows
-        if not any(cell.strip() for cell in row if cell):
-            continue
+        name = row[7] if len(row) > 7 else "Unknown"
+        qty = row[5] if len(row) > 5 else "0"
+        item = row[4] if len(row) > 4 else "—"
+        time_str = row[0] if len(row) > 0 else "Unknown time"
 
         embed = discord.Embed(
             title="📄 New Log Entry",
-            color=discord.Color.orange(),
-            timestamp=datetime.utcnow()
+            description=f"**[{name}]**: Contributed **{qty} x {item}**",
+            color=discord.Color.orange()
         )
 
-        for col in WATCH_COLUMNS:
-            name = headers[col] if col < len(headers) else f"Column {col+1}"
-            value = row[col] if col < len(row) and row[col] else "—"
-
-            embed.add_field(
-                name=name,
-                value=value,
-                inline=True
-            )
+        embed.set_footer(text=time_str)
 
         await channel.send(embed=embed)
+
+    last_known_rows = current_rows
 
     # Persist state
     last_known_rows = current_row_count
