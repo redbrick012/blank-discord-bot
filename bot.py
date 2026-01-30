@@ -1,146 +1,51 @@
-import os
+from discord.ext import commands, tasks
 import discord
-from discord.ext import tasks, commands
-from datetime import datetime, time, timedelta
-import asyncio
 
 from sheets import (
-    get_daily_stats,
-    get_row_count,
-    get_sheet_values,
-    WATCH_SHEET,
-    STATS_SHEET,
-    get_last_daily_msg_id,
-    save_last_daily_msg_id,
-    get_last_logged_row,
-    save_last_logged_row
+    get_last_processed_row,
+    set_last_processed_row,
+    get_new_log_rows
 )
 
-# ---------- ENV ----------
-DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-STATS_CHANNEL_ID = int(os.getenv("STATS_CHANNEL_ID", 0))
-LOGS_CHANNEL_ID = int(os.getenv("LOGS_CHANNEL_ID", 0))
+CHANNEL_ID = int(os.environ["INVENTORY_CHANNEL_ID"])
 
-if not DISCORD_TOKEN:
-    raise RuntimeError("DISCORD_TOKEN not set")
+bot = commands.Bot(command_prefix="!", intents=discord.Intents.default())
 
-# ---------- DISCORD SETUP ----------
-intents = discord.Intents.default()
-bot = commands.Bot(command_prefix="!", intents=intents)
 
-# ---------- EMBED HELPERS ----------
-def bold_text(text):
-    return text.translate(str.maketrans(
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
-        "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭"
-        "𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘷𝘄𝘅𝘆𝘇"
-    ))
+@bot.event
+async def on_ready():
+    sheet_watch_task.start()
+    print("Bot online")
 
-def build_daily_stats_embed(rows, total):
-    yesterday = datetime.utcnow() - timedelta(days=1)
-    lines = ["```", f"{bold_text('Person'):<15} | {bold_text('Items Sent'):>10}", "═" * 28]
-    for person, count in rows:
-        lines.append(f"{person:<15} | {count:>10}")
-    lines.append("═" * 28)
-    lines.append(f"💰 {bold_text('Total Sent'):<13} | {total:>10}")
-    lines.append("```")
-
-    embed = discord.Embed(
-        title=f"📅 Daily Stats – {yesterday.strftime('%A, %d %B %Y')}",
-        color=discord.Color.green()
-    )
-    embed.add_field(name="Daily Breakdown", value="\n".join(lines), inline=False)
-    return embed
 
 def build_log_embed(rows):
-    embed = discord.Embed(title="📄 New Log Entries", color=discord.Color.orange(), timestamp=datetime.utcnow())
+    embed = discord.Embed(
+        title="📦 New Inventory Logs",
+        color=0x2ecc71
+    )
+
+    description = ""
     for row in rows:
-        name = row[7] if len(row) > 7 else "Unknown"
-        qty = row[5] if len(row) > 5 else "0"
-        item = row[4] if len(row) > 4 else "—"
-        timestamp = row[0] if len(row) > 0 else datetime.utcnow().strftime("%d/%m/%Y %H:%M:%S")
-        embed.add_field(name=f"{name} • {item}", value=f"QTY: {qty}\nTime: {timestamp}", inline=False)
+        description += (
+            f"**{row[7]}** • {row[4]} | QTY: {row[5]}\n"
+            if len(row) > 7 else "Malformed row\n"
+        )
+
+    embed.description = description[:5900]
     return embed
 
-# ---------- SLASH COMMANDS ----------
-@bot.tree.command(name="dailystats", description="Show today's daily stats")
-async def dailystats(interaction: discord.Interaction):
-    await interaction.response.defer()
-    rows, total = get_daily_stats()
-    embed = build_daily_stats_embed(rows, total)
-    await interaction.followup.send(embed=embed)
-
-@bot.tree.command(name="lastlog", description="Show recent log entries")
-async def lastlog(interaction: discord.Interaction):
-    await interaction.response.defer()
-    values = await asyncio.to_thread(get_sheet_values, WATCH_SHEET)
-    if not values or len(values) < 2:
-        await interaction.followup.send("No log entries found.")
-        return
-    headers, data_rows = values[0], values[1:]
-    recent_rows = data_rows[-100:]
-    new_rows = [r for r in recent_rows if any(c.strip() for c in r if c)]
-    if not new_rows:
-        await interaction.followup.send("No log entries found.")
-        return
-    embed = build_log_embed(new_rows)
-    await interaction.followup.send(embed=embed)
-
-# ---------- TASKS ----------
-@tasks.loop(time=time(hour=9, minute=0, second=0))
-async def daily_stats_task():
-    channel = bot.get_channel(STATS_CHANNEL_ID)
-    if not channel:
-        print("Stats channel not found")
-        return
-    rows, total = get_daily_stats()
-    embed = build_daily_stats_embed(rows, total)
-
-    message_id = get_last_daily_msg_id()
-    try:
-        if message_id:
-            msg = await channel.fetch_message(message_id)
-            await msg.edit(embed=embed)
-            print("✅ Daily stats updated")
-            return
-    except discord.NotFound:
-        pass
-    msg = await channel.send(embed=embed)
-    save_last_daily_msg_id(msg.id)
-    print("✅ Daily stats message created")
 
 @tasks.loop(minutes=1)
 async def sheet_watch_task():
-    print(f"🕐 sheet_watch_task tick {datetime.utcnow().strftime('%H:%M:%S')} UTC")
-    last_row = get_last_logged_row()
-    values = await asyncio.to_thread(get_sheet_values, WATCH_SHEET)
-    if not values or len(values) <= last_row:
-        return
-    headers, data_rows = values[0], values[1:]
-    new_rows = data_rows[last_row:]
-    new_rows = [row for row in new_rows if any(cell.strip() for cell in row if cell)]
+    channel = bot.get_channel(CHANNEL_ID)
+
+    last_row = get_last_processed_row()
+    new_rows, current_last_row = get_new_log_rows(last_row)
+
     if not new_rows:
-        return
+        return  # ✅ NOTHING NEW → DO NOTHING
 
-    channel = bot.get_channel(LOGS_CHANNEL_ID)
-    if not channel:
-        return
+    await channel.send(embed=build_log_embed(new_rows))
 
-    # Group all new rows into a single embed
-    embed = build_log_embed(new_rows)
-    await channel.send(embed=embed)
-
-    # Save last processed row (after header)
-    save_last_logged_row(len(data_rows))
-    print(f"✅ Posted {len(new_rows)} new rows")
-
-# ---------- EVENTS ----------
-@bot.event
-async def on_ready():
-    print(f"✅ Logged in as {bot.user}")
-    if not daily_stats_task.is_running(): daily_stats_task.start()
-    if not sheet_watch_task.is_running(): sheet_watch_task.start()
-    await bot.tree.sync()
-
-# ---------- RUN BOT ----------
-bot.run(DISCORD_TOKEN)
+    # ✅ Update state ONLY after successful send
+    set_last_processed_row(current_last_row)
