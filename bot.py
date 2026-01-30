@@ -23,7 +23,7 @@ intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Track last rows for Logs
-last_known_rows = 0
+last_known_rows = last_known_rows()
 WATCH_COLUMNS = [0, 1, 2, 4, 5]  # A,B,C,E,F
 
 LAST_ROW_FILE = "last_row.txt"
