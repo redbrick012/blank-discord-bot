@@ -9,14 +9,11 @@ jobs:
   run-bot:
     runs-on: ubuntu-latest
     env:
-      
-      env:
-  DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
-  GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
-  SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
-  STATS_CHANNEL_ID: ${{ secrets.STATS_CHANNEL_ID }}
-  LOGS_CHANNEL_ID: ${{ secrets.LOGS_CHANNEL_ID }}
-  
+        DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+        GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+        SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+        STATS_CHANNEL_ID: ${{ secrets.STATS_CHANNEL_ID }}
+        LOGS_CHANNEL_ID: ${{ secrets.LOGS_CHANNEL_ID }}
     steps:
       - uses: actions/checkout@v3
 
