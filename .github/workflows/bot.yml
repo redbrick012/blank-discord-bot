@@ -29,6 +29,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run bot
-        run: python bot.py
-        run: python daily_stats_webhook.py
+      - name: Run bot & daily stats
+        run: |
+          python daily_stats_webhook.py
+          python bot.py
+
