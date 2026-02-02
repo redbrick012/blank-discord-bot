@@ -82,27 +82,30 @@ async def lastlog(interaction: discord.Interaction):
     await interaction.followup.send(embed=embed)
 
 # ---------- TASKS ----------
-@tasks.loop(time=time(hour=9, minute=0, second=0))
+@tasks.loop(minutes=1)
 async def daily_stats_task():
     channel = bot.get_channel(STATS_CHANNEL_ID)
     if not channel:
         print("Stats channel not found")
         return
+
     rows, total = get_daily_stats()
     embed = build_daily_stats_embed(rows, total)
 
     message_id = get_last_daily_msg_id()
+
     try:
         if message_id:
             msg = await channel.fetch_message(message_id)
             await msg.edit(embed=embed)
-            print("✅ Daily stats updated")
+            print("🔁 Daily stats refreshed")
             return
     except discord.NotFound:
-        pass
+        print("⚠️ Previous daily stats message missing, recreating")
+
     msg = await channel.send(embed=embed)
     save_last_daily_msg_id(msg.id)
-    print("✅ Daily stats message created")
+    print("🆕 Daily stats message created")
 
 @tasks.loop(minutes=1)
 async def sheet_watch_task():
