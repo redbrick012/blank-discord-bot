@@ -32,18 +32,24 @@ def get_row_count(sheet_name):
 # ---------- DAILY STATS ----------
 def get_daily_stats():
     ws = sheet.worksheet(STATS_SHEET)
-    rows = ws.get_all_values()[1:]  # skip header
+
+    # Fetch only the relevant range
+    rows = ws.get("B7:C20")
 
     totals = {}
     total_items = 0
 
     for row in rows:
-        if len(row) < 6:
+        if len(row) < 2:
             continue
-        person = row[1].strip()
+
+        person = row[0].strip()
+        if not person:
+            continue
+
         try:
-            qty = int(row[5])
-        except ValueError:
+            qty = int(row[1])
+        except (ValueError, TypeError):
             continue
 
         totals[person] = totals.get(person, 0) + qty
