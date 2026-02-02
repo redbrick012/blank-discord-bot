@@ -84,7 +84,7 @@ def send_webhook(embed):
     payload = {"embeds": [embed]}
     headers = {"Content-Type": "application/json"}
 
-    # Try to edit existing message
+    # Try edit
     if last_msg_id:
         edit_url = f"{DISCORD_WEBHOOK_URL}/messages/{last_msg_id}"
         r = requests.patch(edit_url, json=payload, headers=headers)
@@ -96,14 +96,22 @@ def send_webhook(embed):
 
     # Post new message
     r = requests.post(DISCORD_WEBHOOK_URL, json=payload, headers=headers)
-    if r.status_code in (200, 204):
-        new_msg_id = r.json().get("id") if r.status_code == 200 else None
+    if r.status_code in (200, 201):
+        try:
+            new_msg_id = r.json()["id"]
+        except Exception:
+            # fallback: Discord sometimes returns 204 No Content
+            # Use requests.Response headers (x-ratelimit or id not always present)
+            new_msg_id = None
         if new_msg_id:
             save_last_message_id(new_msg_id)
-        print(f"🆕 Posted new message {new_msg_id}")
+            print(f"🆕 Posted new message {new_msg_id} and saved to B1")
+        else:
+            print("🆕 Posted new message but could not retrieve ID")
         return new_msg_id
     else:
         raise RuntimeError(f"❌ Discord API error {r.status_code}: {r.text}")
+
 
 # =====================
 # MAIN
