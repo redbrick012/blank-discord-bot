@@ -133,9 +133,10 @@ async def sheet_watch_task():
 @bot.event
 async def on_ready():
     print(f"✅ Logged in as {bot.user}")
-    if not daily_stats_task.is_running(): daily_stats_task.start()
+    # daily_stats_task removed — we handle stats via webhook now
     if not sheet_watch_task.is_running(): sheet_watch_task.start()
     await bot.tree.sync()
+
 
 # ---------- RUN BOT ----------
 bot.run(DISCORD_TOKEN)
