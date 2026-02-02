@@ -82,7 +82,7 @@ async def lastlog(interaction: discord.Interaction):
     await interaction.followup.send(embed=embed)
 
 # ---------- TASKS ----------
-#@tasks.loop(minutes=1)
+@tasks.loop(minutes=1)
 async def daily_stats_task():
     channel = bot.get_channel(STATS_CHANNEL_ID)
     if not channel:
