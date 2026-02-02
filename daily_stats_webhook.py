@@ -64,7 +64,7 @@ def build_embed(rows, total):
         "title": f"📊 Daily Stats – {yesterday.strftime('%A %d %B %Y')}",
         "description": "\n".join(lines),
         "color": 0x2ecc71,
-        "footer": {"text": "Auto-refresh via GitHub Actions"},
+        "footer": {"text": "Auto-refresh"},
         "timestamp": datetime.utcnow().isoformat()
     }
     return embed
