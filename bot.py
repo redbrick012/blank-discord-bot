@@ -53,7 +53,7 @@ def build_daily_stats_embed(rows, total):
     return embed
 
 def build_log_embed(rows):
-    embed = discord.Embed(title="📄 New Log Entries", color=discord.Color.orange(), timestamp=datetime.utcnow())
+    embed = discord.Embed(title="", color=discord.Color.orange(), timestamp=datetime.utcnow())
     for row in rows:
         name = row[7] if len(row) > 7 else "Unknown"
         qty = row[5] if len(row) > 5 else "0"
