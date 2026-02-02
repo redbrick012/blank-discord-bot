@@ -8,7 +8,7 @@ from google.oauth2.service_account import Credentials
 # =====================
 # ENV
 # =====================
-DISCORD_WEBHOOK_URL = os.environ["STATS_WEBHOOK"]
+DISCORD_WEBHOOK_URL = os.environ["DISCORD_WEBHOOK_URL"]
 SPREADSHEET_ID = os.environ["SPREADSHEET_ID"]
 SERVICE_ACCOUNT_JSON = os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"]
 
